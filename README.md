@@ -27,8 +27,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | Steg | Innhold | Status |
 |---|---|---|
 | 1 | Solution, App og Tests, felles byggeoppsett (`Directory.Build.props`), `.gitignore` | ✅ |
-| 2 | GitHub: `main` som hovedgren, CI som bygger og tester hver PR, beskyttet `main` | Pågår |
-| 3 | Første komponent **Katter** (avlsdyr): controller → handler → database (i minnet), tester | |
+| 2 | GitHub: `main` som hovedgren, CI som bygger og tester hver PR (beskyttelse av `main` utsatt, privat repo) | ✅ |
+| 3 | Første komponent **Katter** (avlsdyr): controller → handler → database (i minnet), tester | Pågår |
 | 4 | Lagring: Table Storage via Azurite lokalt, nøkkeldesign, ETag | |
 | 5 | Bilder: opplasting til Blob Storage, størrelser og miniatyrer | |
 | 6 | Frontend: React + TypeScript strict + Vite, servert av appen, offentlige sider | |
