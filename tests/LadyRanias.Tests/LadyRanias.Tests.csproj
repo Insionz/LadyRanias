@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.Testing" Version="10.11.0" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageReference Include="MSTest" Version="4.0.2" />
   </ItemGroup>
@@ -11,10 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LadyRanias.App\LadyRanias.App.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="ComponentTests\" />
   </ItemGroup>
 
 </Project>
