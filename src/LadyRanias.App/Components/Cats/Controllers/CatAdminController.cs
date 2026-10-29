@@ -1,0 +1,58 @@
+﻿using LadyRanias.App.Components.Cats.Api;
+using Microsoft.AspNetCore.Mvc;
+
+namespace LadyRanias.App.Components.Cats.Controllers;
+
+[ApiController]
+[Route("api/admin/cats")]
+public sealed class CatAdminController(ICatHandler handler) : ControllerBase
+{
+    [HttpGet]
+    public Task<IReadOnlyList<CatDto>> GetAll(CancellationToken ct)
+    {
+        var allCats = handler.GetAllAsync(ct);
+        return allCats;
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CatDto>> Get(Guid id, CancellationToken ct)
+    {
+        var cat = await handler.GetAsync(id, ct);
+        
+        if (cat == null)
+        {
+            return NotFound();
+        }
+
+        return cat;
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<CatDto>> Create(CreateCatDto createCatDto, CancellationToken ct)
+    {
+        var createdCat = await handler.CreateAsync(createCatDto, ct);
+
+        return CreatedAtAction(nameof(Get), new { id = createdCat.Id }, createdCat);
+    }
+
+    [HttpPut("{id:guid}/change")]
+    public async Task<ActionResult<CatDto?>> ChangeCatName(Guid id, ChangeNameDto changeNameDto, CancellationToken ct)
+    {
+        var changedCat = await handler.SaveNameAsync(id, changeNameDto, ct);
+
+        if (changedCat == null)
+        {
+            return NotFound();
+        }
+
+        return changedCat;
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var deleted = await handler.DeleteAsync(id, ct);
+
+        return deleted ? NoContent() : NotFound();
+    }
+}
