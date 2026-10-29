@@ -62,4 +62,60 @@ Status-sjekken kan ikke gjøres påkrevd før workflowen har kjørt minst én ga
 
 ---
 
+## Steg 3: Første komponent – Katter (avlsdyr)
+
+**Mål:** API for avlsdyrene, bygget som en selvstendig komponent der en forespørsel går
+controller → handler → database. Data ligger foreløpig i minnet, og byttes til Table Storage i steg 4.
+
+**Rydd først**
+- [ ] Slett `WeatherForecast.cs`, `WeatherForecastController.cs` og `Test1.cs`
+
+**Mappestruktur**
+```
+src/LadyRanias.App/Components/Katter/
+├─ KatterComponent.cs   ← UseKatterComponent(): registrerer alt i DI, kalles fra Program.cs
+├─ Api/                 ← det andre får se: interface for handleren og DTO-ene
+└─ Impl/                ← controllere, handler, database-interface og in-memory-database
+```
+
+**En katt har (minst)**
+- Id, navn, kjønn (hann/hunn), fødselsdato, farge, beskrivelse (valgfri)
+- om den er i aktiv avl eller pensjonert
+
+**Endepunkter**
+
+| Metode og rute | Hvem | Hva |
+|---|---|---|
+| `GET api/public/katter` | alle | liste over katter i aktiv avl |
+| `GET api/public/katter/{id}` | alle | én katt, 404 hvis den ikke finnes |
+| `POST api/admin/katter` | admin* | opprett, 400 ved ugyldig input, 201 med den nye katten |
+| `PUT api/admin/katter/{id}` | admin* | endre, 404 hvis den ikke finnes |
+| `DELETE api/admin/katter/{id}` | admin* | slett, 204, eller 404 |
+
+\* Admin-rutene får innlogging i steg 8. Nå er de åpne, men skal ligge i en **egen controller**,
+så vi senere kan låse hele prefikset på ett sted.
+
+**Regler**
+- [ ] Controllerne har ingen logikk. De oversetter bare mellom HTTP og handleren.
+- [ ] Handleren vet ingenting om HTTP. Den returnerer ikke `IActionResult`.
+- [ ] Bare `Api/` og controllerne er `public`. Resten er `internal`.
+- [ ] Databasen tåler samtidige forespørsler, siden alt er singleton.
+- [ ] Navn er påkrevd, og fødselsdato kan ikke være i fremtiden.
+
+**Tester**
+- [ ] Enhetstester av handleren, uten HTTP
+- [ ] Minst én komponenttest som starter hele appen og går via HTTP: opprett en katt med POST, og hent den med GET
+- [ ] En test som viser at en pensjonert katt ikke kommer med i den offentlige lista
+
+**Ferdig når**
+- [ ] `dotnet test` er grønn lokalt og i CI
+- [ ] Du kan opprette og hente katter fra `LadyRanias.App.http`
+- [ ] Merget via PR
+
+**Det kan være lurt å slå opp:** `[ApiController]`, `[Route]`, «dependency injection lifetimes»,
+`ConcurrentDictionary`, `WebApplicationFactory` (pakken `Microsoft.AspNetCore.Mvc.Testing`),
+`InternalsVisibleTo`, `TimeProvider` (for å teste «ikke i fremtiden» uten å være avhengig av dagens dato).
+
+---
+
 Neste steg beskrives her når vi kommer dit.

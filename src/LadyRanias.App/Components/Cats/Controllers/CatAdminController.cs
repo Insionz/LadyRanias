@@ -1,5 +1,6 @@
 ﻿using LadyRanias.App.Components.Cats.Api;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Cats.Controllers;
 
@@ -30,9 +31,17 @@ public sealed class CatAdminController(ICatHandler handler) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CatDto>> Create(CreateCatDto createCatDto, CancellationToken ct)
     {
-        var createdCat = await handler.CreateAsync(createCatDto, ct);
+        try
+        {
+            var createdCat = await handler.CreateAsync(createCatDto, ct);
 
-        return CreatedAtAction(nameof(Get), new { id = createdCat.Id }, createdCat);
+            return CreatedAtAction(nameof(Get), new { id = createdCat.Id }, createdCat);
+
+        }
+        catch (ValidationException ex) 
+        {
+            return ValidationProblem(detail: ex.Message);
+        }
     }
 
     [HttpPut("{id:guid}/change")]

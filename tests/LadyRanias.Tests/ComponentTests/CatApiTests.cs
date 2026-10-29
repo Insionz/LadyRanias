@@ -117,4 +117,23 @@ public sealed class CatApiTests
         var response = await _httpClient.PostAsync($"api/public/cats", null);
         Assert.AreEqual(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
+
+    [TestMethod]
+    public async Task Post_with_future_birthdate_returns_bad_request()
+    {
+        var birthDateTomorrow = DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().UtcDateTime).AddDays(1);
+
+        var catBornTomorrow = new CreateCatDto
+        {
+            Name = "Test",
+            Sex = SexEnum.Male,
+            BirthDate = birthDateTomorrow,
+            Description = "Test"
+        };
+
+        var response = await _httpClient.PostAsJsonAsync("api/admin/cats", catBornTomorrow, Json);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        StringAssert.Contains(await response.Content.ReadAsStringAsync(), "BirthDate");
+    }
 }
