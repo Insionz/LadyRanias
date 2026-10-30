@@ -8,9 +8,11 @@ internal sealed class TableCatDatabase : ICatDatabase
 {
     private readonly TableClient _tableClient;
 
-    public TableCatDatabase(TableServiceClient tableServiceClient)
+    public TableCatDatabase(TableServiceClient tableServiceClient) : this(tableServiceClient, "cats") { }
+    
+    internal TableCatDatabase(TableServiceClient tableServiceClient, string tableName)
     {
-        _tableClient = tableServiceClient.GetTableClient("cats");
+        _tableClient = tableServiceClient.GetTableClient(tableName);
         _tableClient.CreateIfNotExists();
     }
 
@@ -42,7 +44,7 @@ internal sealed class TableCatDatabase : ICatDatabase
 
     public async Task SaveAsync(CatEntity entity, CancellationToken cancellationToken)
     {
-        await _tableClient.UpsertEntityAsync(ToCatTableEntity(entity), cancellationToken: cancellationToken);
+        await _tableClient.UpsertEntityAsync(ToCatTableEntity(entity), mode: TableUpdateMode.Replace, cancellationToken: cancellationToken);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
