@@ -40,13 +40,11 @@ public sealed class TableCatDatabaseTests
     [TestMethod]
     public async Task Save_then_get_returns_same_cat()
     {
-        var catId = Guid.NewGuid();
-
         var catRequest = NewCat();
 
         await _database.SaveAsync(catRequest, CancellationToken.None);
 
-        var catResponse = await _database.GetAsync(catId, CancellationToken.None);
+        var catResponse = await _database.GetAsync(catRequest.Id, CancellationToken.None);
 
         Assert.AreEqual(catRequest, catResponse);
     }
@@ -54,18 +52,16 @@ public sealed class TableCatDatabaseTests
     [TestMethod]
     public async Task Save_existing_cat_overwrites_it()
     {
-        var catId = Guid.NewGuid();
-
         var catRequest = NewCat();
 
         await _database.SaveAsync(catRequest, CancellationToken.None);
-        var cat = await _database.GetAsync(catId, CancellationToken.None);
+        var cat = await _database.GetAsync(catRequest.Id, CancellationToken.None);
         Assert.IsNotNull(cat);
         Assert.AreEqual(catRequest.Name, cat.Name);
         Assert.AreEqual(catRequest, cat);
 
         await _database.SaveAsync(catRequest with { Name = "Bjørn" },  CancellationToken.None);
-        cat = await _database.GetAsync(catId, CancellationToken.None);
+        cat = await _database.GetAsync(catRequest.Id, CancellationToken.None);
         Assert.IsNotNull(cat);
         Assert.AreEqual("Bjørn", cat.Name);
     }
@@ -73,7 +69,6 @@ public sealed class TableCatDatabaseTests
     [TestMethod]
     public async Task GetAll_returns_all_saved_cats() 
     {
-        var catId = Guid.NewGuid();
         var catRequest = NewCat();
 
         var all = await _database.GetAllAsync(CancellationToken.None);
@@ -94,16 +89,15 @@ public sealed class TableCatDatabaseTests
     [TestMethod]
     public async Task Delete_existing_cat_returns_true_and_removes_it()
     {
-        var catId = Guid.NewGuid();
         var catRequest = NewCat();
 
         await _database.SaveAsync(catRequest, CancellationToken.None);
 
-        var deleted = await _database.DeleteAsync(catId, CancellationToken.None);
+        var deleted = await _database.DeleteAsync(catRequest.Id, CancellationToken.None);
 
         Assert.IsTrue(deleted);
 
-        var get = await _database.GetAsync(catId, CancellationToken.None);
+        var get = await _database.GetAsync(catRequest.Id, CancellationToken.None);
 
         Assert.IsNull(get);
     }
