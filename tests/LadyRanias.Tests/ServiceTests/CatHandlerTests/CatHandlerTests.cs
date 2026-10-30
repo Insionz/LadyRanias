@@ -1,6 +1,7 @@
 ﻿using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
 using Microsoft.Extensions.Time.Testing;
+using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.Tests.ServiceTests.CatHandlerTests;
 
@@ -114,5 +115,57 @@ public sealed class CatHandlerTests
         var deleted = await _handler.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.IsFalse(deleted);
+    }
+
+    [TestMethod]
+    public async Task Create_with_future_birthdate_is_rejected()
+    {
+        var birthDate = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(1);
+
+        var catBornTomorrow = new CreateCatDto
+        {
+            Name = "Test",
+            Sex = SexEnum.Male,
+            BirthDate = birthDate,
+            Description = "Test"
+        };
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(catBornTomorrow, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Create_with_unknown_sex_is_rejected()
+    {
+        var birthDate = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(-30);
+
+        var catBornTomorrow = new CreateCatDto
+        {
+            Name = "Test",
+            Sex = SexEnum.Unknown,
+            BirthDate = birthDate,
+            Description = "Test"
+        };
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(catBornTomorrow, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Create_with_birthdate_today_is_accepted()
+    {
+        var birthDateToday = DateOnly.FromDateTime(Start.UtcDateTime);
+
+        var catBornToday = new CreateCatDto
+        {
+            Name = "Test",
+            Sex = SexEnum.Male,
+            BirthDate = birthDateToday,
+            Description = "Test"
+        };
+
+        var response = await _handler.CreateAsync(catBornToday, CancellationToken.None);
+
+        Assert.AreEqual(birthDateToday, response.BirthDate);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using LadyRanias.App.Components.Cats.Api;
+using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Cats.Impl;
 
@@ -16,16 +17,20 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
 
         return cat == null ? null : ToDto(cat);
     }
-    public async Task<CatDto> CreateAsync(CreateCatDto entity, CancellationToken cancellationToken)
+    public async Task<CatDto> CreateAsync(CreateCatDto newCat, CancellationToken cancellationToken)
     {
+        var timeNow = timeProvider.GetUtcNow();
+
+        Validate(newCat.Sex, newCat.BirthDate, timeNow);
+
         var cat = new CatEntity
         {
             Id = Guid.NewGuid(),
-            Name = entity.Name,
-            Sex = entity.Sex,
-            Description = entity.Description,
-            BirthDate = entity.BirthDate,
-            CreatedAt = timeProvider.GetUtcNow(),
+            Name = newCat.Name,
+            Sex = newCat.Sex,
+            Description = newCat.Description,
+            BirthDate = newCat.BirthDate,
+            CreatedAt = timeNow,
         };
 
         await database.SaveAsync(cat, cancellationToken);
@@ -55,16 +60,29 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
         return await database.DeleteAsync(id, cancellationToken);
     }
 
-    private static CatDto ToDto(CatEntity entity)
+    private static void Validate(SexEnum sex, DateOnly birthDate, DateTimeOffset now)
+    {
+        if (birthDate > DateOnly.FromDateTime(now.UtcDateTime))
+        {
+            throw new ValidationException("BirthDate must be today or before");
+        }
+
+        if (sex == SexEnum.Unknown)
+        {
+            throw new ValidationException("Sex must be either male or female");
+        }
+    }
+
+    private static CatDto ToDto(CatEntity newCat)
     {
         return new CatDto
         {
-            Id = entity.Id,
-            Name = entity.Name,
-            Sex = entity.Sex,
-            Description = entity.Description,
-            BirthDate = entity.BirthDate,
-            CreatedAt = entity.CreatedAt,
+            Id = newCat.Id,
+            Name = newCat.Name,
+            Sex = newCat.Sex,
+            Description = newCat.Description,
+            BirthDate = newCat.BirthDate,
+            CreatedAt = newCat.CreatedAt,
         };
     }
 }
