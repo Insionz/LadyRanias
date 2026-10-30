@@ -8,7 +8,7 @@ internal sealed class InMemoryCatDatabase : ICatDatabase
     
     public Task<IReadOnlyList<CatEntity>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<IReadOnlyList<CatEntity>>(_storage.Values.OrderByDescending(o => o.CreatedAt).ToList());
+        return Task.FromResult<IReadOnlyList<CatEntity>>([.. _storage.Values]);
     }
 
     public Task<CatEntity?> GetAsync(Guid id, CancellationToken cancellationToken)

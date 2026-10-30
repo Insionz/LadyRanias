@@ -1,6 +1,24 @@
 @LadyRanias.App_HostAddress = http://localhost:5127
 
-GET {{LadyRanias.App_HostAddress}}/weatherforecast/
-Accept: application/json
+@host = {{LadyRanias.App_HostAddress}}
 
-###
+### Opprett en katt
+# @name createCat
+POST {{host}}/api/admin/cats
+Content-Type: application/json
+
+{
+  "name": "Kiara",
+  "sex": "Female",
+  "birthDate": "2024-03-01",
+  "description": "Sibirsk skogkatt"
+}
+
+### Hent alle (offentlig)
+GET {{host}}/api/public/cats
+
+### Hent den vi nettopp opprettet
+GET {{host}}/api/public/cats/{{createCat.response.body.$.id}}
+
+### Slett den
+DELETE {{host}}/api/admin/cats/{{createCat.response.body.$.id}}

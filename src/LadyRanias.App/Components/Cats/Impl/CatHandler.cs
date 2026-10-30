@@ -9,7 +9,7 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
     {
         var allCats = await database.GetAllAsync(cancellationToken);
 
-        return allCats.Select(ToDto).ToList();
+        return allCats.OrderByDescending(cat => cat.CreatedAt).Select(ToDto).ToList();
     }
     public async Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken)
     {

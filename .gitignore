@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Azurite (lokal Table/Blob Storage-emulator)
+.azurite/
