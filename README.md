@@ -28,7 +28,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 |---|---|---|
 | 1 | Solution, App og Tests, felles byggeoppsett (`Directory.Build.props`), `.gitignore` | ✅ |
 | 2 | GitHub: `main` som hovedgren, CI som bygger og tester hver PR (beskyttelse av `main` utsatt, privat repo) | ✅ |
-| 3 | Første komponent **Katter** (avlsdyr): controller → handler → database (i minnet), tester | Pågår |
+| 3a | Første komponent **Cats**: controller → handler → database (i minnet), enhets- og komponenttester | ✅ |
+| 3b | **Cats**, resten: farge, aktiv/pensjonert, regler for fødselsdato, valgfri beskrivelse | Pågår |
 | 4 | Lagring: Table Storage via Azurite lokalt, nøkkeldesign, ETag | |
 | 5 | Bilder: opplasting til Blob Storage, størrelser og miniatyrer | |
 | 6 | Frontend: React + TypeScript strict + Vite, servert av appen, offentlige sider | |
@@ -42,79 +43,40 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 
 ---
 
-## Steg 2: Repo, PR-flyt og CI
+## Steg 3b: Cats – resten
 
-**Mål:** Ingen kode kommer inn på `main` uten en PR med grønt bygg.
+**Mål:** Avlsdyrene har det moren trenger å vise, og reglene for gyldige data ligger i handleren, dekket av tester.
 
-**Krav**
-- [ ] Hovedgrenen heter `main`, både lokalt og på GitHub
-- [ ] Workflow `.github/workflows/ci.yml` som kjører på pull request mot `main`:
-      `ubuntu-latest`, sjekker ut koden, setter opp .NET 10, og kjører `restore`, `build` og `test` som separate steg
-- [ ] `main` er beskyttet: ingen direkte push, PR kreves, og CI-jobben må være grønn før merge
+**Felt**
+- [ ] Farge (tekst foreløpig, for eksempel «svart tabby» eller EMS-kode som «n 22»)
+- [ ] Status: aktiv i avl eller pensjonert (enum, ikke `bool`, så flere verdier kan komme senere)
+- [ ] `Description` er valgfri: `string?` i DTO-er og entitet, uten `[Required]`
 
-**Ferdig når**
-- [ ] Gren → endring → PR → CI kjører → merge
-- [ ] En PR med `string s = null;` blir rød og kan ikke merges
+**Regler (i handleren, med enhetstester skrevet først)**
+- [ ] Fødselsdato kan ikke være i fremtiden. Bruk `TimeProvider` og test med `FakeTimeProvider`.
+- [ ] Fødselsdato kan ikke være urimelig gammel, for eksempel over 30 år
+- [ ] Kjønn kan ikke være `Unknown` ved opprettelse
+- [ ] `[StringLength]` på `Name`, `Color` og `Description`
 
-**Det kan være lurt å slå opp:** «GitHub Actions workflow syntax», `on: pull_request`, `actions/checkout`,
-`actions/setup-dotnet`, «GitHub rulesets», «required status checks».
-Status-sjekken kan ikke gjøres påkrevd før workflowen har kjørt minst én gang.
+**Offentlig visning**
+- [ ] `GET api/public/cats` viser bare katter i aktiv avl. Admin-lista viser alle.
+- [ ] Sorteringen flyttes fra databasen til handleren. Avklar rekkefølgen: navn, kjønn eller nyeste først?
 
----
-
-## Steg 3: Første komponent – Katter (avlsdyr)
-
-**Mål:** API for avlsdyrene, bygget som en selvstendig komponent der en forespørsel går
-controller → handler → database. Data ligger foreløpig i minnet, og byttes til Table Storage i steg 4.
-
-**Rydd først**
-- [ ] Slett `WeatherForecast.cs`, `WeatherForecastController.cs` og `Test1.cs`
-
-**Mappestruktur**
-```
-src/LadyRanias.App/Components/Katter/
-├─ KatterComponent.cs   ← UseKatterComponent(): registrerer alt i DI, kalles fra Program.cs
-├─ Api/                 ← det andre får se: interface for handleren og DTO-ene
-└─ Impl/                ← controllere, handler, database-interface og in-memory-database
-```
-
-**En katt har (minst)**
-- Id, navn, kjønn (hann/hunn), fødselsdato, farge, beskrivelse (valgfri)
-- om den er i aktiv avl eller pensjonert
-
-**Endepunkter**
-
-| Metode og rute | Hvem | Hva |
-|---|---|---|
-| `GET api/public/katter` | alle | liste over katter i aktiv avl |
-| `GET api/public/katter/{id}` | alle | én katt, 404 hvis den ikke finnes |
-| `POST api/admin/katter` | admin* | opprett, 400 ved ugyldig input, 201 med den nye katten |
-| `PUT api/admin/katter/{id}` | admin* | endre, 404 hvis den ikke finnes |
-| `DELETE api/admin/katter/{id}` | admin* | slett, 204, eller 404 |
-
-\* Admin-rutene får innlogging i steg 8. Nå er de åpne, men skal ligge i en **egen controller**,
-så vi senere kan låse hele prefikset på ett sted.
-
-**Regler**
-- [ ] Controllerne har ingen logikk. De oversetter bare mellom HTTP og handleren.
-- [ ] Handleren vet ingenting om HTTP. Den returnerer ikke `IActionResult`.
-- [ ] Bare `Api/` og controllerne er `public`. Resten er `internal`.
-- [ ] Databasen tåler samtidige forespørsler, siden alt er singleton.
-- [ ] Navn er påkrevd, og fødselsdato kan ikke være i fremtiden.
+**Endring**
+- [ ] Bytt «endre navn» med en full oppdatering: `PUT api/admin/cats/{id}` med `UpdateCatDto`, som tar alle feltene
 
 **Tester**
-- [ ] Enhetstester av handleren, uten HTTP
-- [ ] Minst én komponenttest som starter hele appen og går via HTTP: opprett en katt med POST, og hent den med GET
-- [ ] En test som viser at en pensjonert katt ikke kommer med i den offentlige lista
+- [ ] Enhetstest for hver regel over
+- [ ] Komponenttest: en pensjonert katt finnes i admin-lista, men ikke i public-lista
+- [ ] Komponenttest: fødselsdato i fremtiden gir 400
 
 **Ferdig når**
 - [ ] `dotnet test` er grønn lokalt og i CI
-- [ ] Du kan opprette og hente katter fra `LadyRanias.App.http`
 - [ ] Merget via PR
 
-**Det kan være lurt å slå opp:** `[ApiController]`, `[Route]`, «dependency injection lifetimes»,
-`ConcurrentDictionary`, `WebApplicationFactory` (pakken `Microsoft.AspNetCore.Mvc.Testing`),
-`InternalsVisibleTo`, `TimeProvider` (for å teste «ikke i fremtiden» uten å være avhengig av dagens dato).
+**Spørsmål til deg selv:** Når handleren avviser en ugyldig fødselsdato, hvordan forteller den det til
+controlleren, slik at svaret blir 400 med en forståelig melding? Exception, en resultattype, eller noe annet?
+Velg selv, og vær forberedt på å forklare valget.
 
 ---
 
