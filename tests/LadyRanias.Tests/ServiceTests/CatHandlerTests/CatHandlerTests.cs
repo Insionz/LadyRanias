@@ -135,6 +135,23 @@ public sealed class CatHandlerTests
     }
 
     [TestMethod]
+    public async Task Create_with_unknown_sex_is_rejected()
+    {
+        var birthDate = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(-30);
+
+        var catBornTomorrow = new CreateCatDto
+        {
+            Name = "Test",
+            Sex = SexEnum.Unknown,
+            BirthDate = birthDate,
+            Description = "Test"
+        };
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(catBornTomorrow, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task Create_with_birthdate_today_is_accepted()
     {
         var birthDateToday = DateOnly.FromDateTime(Start.UtcDateTime);

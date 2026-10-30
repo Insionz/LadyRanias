@@ -21,10 +21,7 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
     {
         var timeNow = timeProvider.GetUtcNow();
 
-        if (newCat.BirthDate > DateOnly.FromDateTime(timeNow.UtcDateTime))
-        {
-            throw new ValidationException("BirthDate must be today or before");
-        }
+        Validate(newCat.Sex, newCat.BirthDate, timeNow);
 
         var cat = new CatEntity
         {
@@ -61,6 +58,19 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         return await database.DeleteAsync(id, cancellationToken);
+    }
+
+    private static void Validate(SexEnum sex, DateOnly birthDate, DateTimeOffset now)
+    {
+        if (birthDate > DateOnly.FromDateTime(now.UtcDateTime))
+        {
+            throw new ValidationException("BirthDate must be today or before");
+        }
+
+        if (sex == SexEnum.Unknown)
+        {
+            throw new ValidationException("Sex must be either male or female");
+        }
     }
 
     private static CatDto ToDto(CatEntity newCat)
