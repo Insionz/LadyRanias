@@ -1,3 +1,4 @@
+using LadyRanias.App.Components.CatImages;
 using LadyRanias.App.Components.Cats;
 using System.Text.Json.Serialization;
 
@@ -13,6 +14,7 @@ builder.Services
 builder.Services.AddOpenApi();
 
 builder.UseCatsComponent();
+builder.UseCatImagesComponent();
 
 var app = builder.Build();
 

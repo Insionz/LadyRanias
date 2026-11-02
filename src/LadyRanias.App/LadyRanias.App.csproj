@@ -2,11 +2,16 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Data.Tables" Version="12.13.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>
 	<InternalsVisibleTo Include="LadyRanias.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components\CatImages\Api\" />
   </ItemGroup>
 
 </Project>

@@ -11,12 +11,14 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
 
         return allCats.OrderByDescending(cat => cat.CreatedAt).Select(ToDto).ToList();
     }
+
     public async Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         var cat = await database.GetAsync(id, cancellationToken);
 
         return cat == null ? null : ToDto(cat);
     }
+
     public async Task<CatDto> CreateAsync(CreateCatDto newCat, CancellationToken cancellationToken)
     {
         var timeNow = timeProvider.GetUtcNow();
@@ -37,6 +39,7 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
 
         return ToDto(cat);
     }
+
     public async Task<CatDto?> SaveNameAsync(Guid id, ChangeNameDto changeNameDto, CancellationToken cancellationToken)
     {
         var cat = await database.GetAsync(id, cancellationToken);

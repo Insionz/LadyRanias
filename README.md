@@ -29,8 +29,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 1 | Solution, App og Tests, felles byggeoppsett (`Directory.Build.props`), `.gitignore` | ✅ |
 | 2 | GitHub: `main` som hovedgren, CI som bygger og tester hver PR (beskyttelse av `main` utsatt, privat repo) | ✅ |
 | 3 | Komponent **Cats**: controller → handler → database (i minnet), regler for fødselsdato og kjønn, enhets- og komponenttester | ✅ |
-| 4 | Lagring: Table Storage via Azurite lokalt, nøkkeldesign, ETag | Pågår |
-| 5 | Bilder: opplasting til Blob Storage, størrelser og miniatyrer | |
+| 4 | Lagring: Table Storage via Azurite lokalt og i CI, integrasjonstester | ✅ |
+| 5 | Bilder: opplasting til Blob Storage, størrelser og miniatyrer | Pågår |
 | 6 | Frontend: React + TypeScript strict + Vite, servert av appen, offentlige sider | |
 | 7 | Komponent **Kull og kattunger**: planlagt, født, ledig, reservert og solgt | |
 | 8 | Admin: innlogging for oppdretter, `api/admin` beskyttet, adminsider | |
@@ -40,7 +40,9 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 12 | Deploy til **prod** etter godkjenning, eget domene fra one.com, HTTPS | |
 | 13 | Observerbarhet: logger, helseprober, varsler | |
 
-## Utsatt til senere (Cats)
+## Utsatt til senere
+
+**Cats**
 
 - [ ] Farge (tekst, for eksempel «svart tabby» eller EMS-kode)
 - [ ] Status: aktiv i avl eller pensjonert (enum, ikke `bool`)
@@ -48,63 +50,68 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 - [ ] `Description` valgfri (`string?`), og `[StringLength]` på tekstfeltene
 - [ ] «Endre navn» byttes ut med full oppdatering: `PUT api/admin/cats/{id}` med `UpdateCatDto`
 
+**Lagring**
+- [ ] ETag: oppdateringer avvises hvis raden er endret av noen andre i mellomtiden, og API-et svarer 409 Conflict
+
 ---
 
-## Steg 4: Lagring i Azure Table Storage
+## Steg 5: Bilder i Blob Storage
 
-**Mål:** Kattene overlever en omstart av appen. `InMemoryCatDatabase` får en søster, `TableCatDatabase`,
-som lagrer i Table Storage. Handleren, controllerne og testene merker ingenting, fordi de bare kjenner `ICatDatabase`.
+**Mål:** Oppdretter kan laste opp bilder av en katt. Besøkende ser dem i to størrelser, en miniatyr i lister
+og et stort bilde på detaljsiden. Bildene lagres i Blob Storage, og informasjon om dem i Table Storage.
 
-**Hva er Table Storage?** En enkel og billig nøkkel/verdi-database i Azure. Hver rad identifiseres av
-**PartitionKey + RowKey**, og det er bare disse to som er raske å slå opp på. Lokalt kjører vi **Azurite**,
-en emulator som oppfører seg som Table Storage på din egen maskin.
+**Hva er Blob Storage?** Lagring av filer («blobs») i *containere*, omtrent som mapper. Hver blob har et navn,
+for eksempel `3f2a.../9b1c...-thumb.webp`. Azurite har allerede Blob på port 10000.
 
-### Del 1: Kjør Azurite lokalt
-- [ ] Installer og start Azurite (se under)
-- [ ] Installer **Azure Storage Explorer**, så du kan se tabellene og radene dine
-- [ ] Legg mappen Azurite lagrer data i (for eksempel `.azurite/`) i `.gitignore`
+### Ny komponent: `CatImages`
+Bilder er et eget ansvarsområde, så de får sin egen komponent med `Api/`, `Impl/` og `CatImagesComponent.cs`,
+akkurat som `Cats`. `Cats` skal ikke vite hvordan bilder lagres.
 
-### Del 2: `TableCatDatabase`
-- [ ] Pakken `Azure.Data.Tables` i appen
-- [ ] Tilkoblingsstreng i `appsettings.Development.json`: `"UseDevelopmentStorage=true"` betyr Azurite
-- [ ] `TableServiceClient` registreres som singleton i DI
-- [ ] `TableCatDatabase : ICatDatabase`, `internal sealed`, i `Impl/`
-- [ ] Tabellen opprettes hvis den ikke finnes (`CreateIfNotExistsAsync`)
-- [ ] `UseCatsComponent()` registrerer `TableCatDatabase` i stedet for `InMemoryCatDatabase`
+### Del 1: Lagre og hente filer
+- [ ] Pakken `Azure.Storage.Blobs`, og `BlobServiceClient` registrert i DI med samme tilkoblingsstreng
+- [ ] `IImageStore` (i `Impl/`) med tre operasjoner: lagre en strøm, åpne en strøm, slette
+- [ ] `BlobImageStore : IImageStore`, som oppretter containeren `cat-images` hvis den ikke finnes
+- [ ] Integrasjonstester mot Azurite, med unik container per test, slik du gjorde med tabellene
 
-**Nøkkeldesign (bestem selv, og skriv ned hvorfor):**
-- **PartitionKey**: Det blir få katter. Én fast verdi, for eksempel `"cat"`, legger alle i samme partisjon. Det er
-  raskt og enkelt for små datamengder. Hva ville du valgt hvis det var millioner av rader?
-- **RowKey**: Id-en som tekst.
+### Del 2: Opplasting
+- [ ] `POST api/admin/cats/{catId}/images` tar imot en fil (`IFormFile`, `multipart/form-data`)
+- [ ] Avvis hvis katten ikke finnes (404), hvis filen ikke er JPEG, PNG eller WebP (400), eller er over 10 MB (400)
+- [ ] Informasjon om hvert bilde lagres i en egen tabell `catimages`
 
-**Typer Table Storage ikke støtter.** Lagringen kan bare `string`, `int`, `long`, `double`, `bool`, `Guid`,
-`DateTime`, `DateTimeOffset` og `byte[]`. Altså **ikke** `DateOnly` og **ikke** enum. Du må oversette mellom
-`CatEntity` og raden som lagres. Det er en god grunn til at entitet og DTO er skilt: nå får du et tredje format,
-og bare `TableCatDatabase` trenger å vite om det.
+**Nøkkeldesign:** Her blir PartitionKey interessant for første gang.
+Med **PartitionKey = catId** og **RowKey = imageId** ligger alle bildene til én katt i samme partisjon,
+og «hent alle bilder for katt X» blir ett raskt oppslag. Sammenlign med `cats`-tabellen, der alt ligger i én partisjon.
 
-**Sortering.** Table Storage returnerer rader sortert på PartitionKey og RowKey, ikke på `CreatedAt`.
-Sorteringen må derfor flyttes fra databasen til **handleren**. Testen `Get_all_cats_returns_all_newest_first`
-skal fortsatt være grønn etterpå.
+### Del 3: Størrelser og personvern
+- [ ] Hvert opplastet bilde lagres i to versjoner: miniatyr (for eksempel 400 px bred) og stort (for eksempel 1600 px bred)
+- [ ] Originalen lagres ikke. Den er ofte mange MB fra en mobil, og trengs ikke på nettsiden.
+- [ ] **Fjern metadata (EXIF)** før lagring. Bilder fra mobil inneholder ofte **GPS-posisjonen** der de ble tatt,
+      altså adressen hjemme. Det skal ikke ut på nettet.
+- [ ] Bildebehandlingen ligger bak et eget interface (`IImageProcessor`), så den kan testes alene
 
-### Del 3: ETag og samtidige endringer
-- [ ] Hver rad har en **ETag**, en versjon som endres ved hver lagring
-- [ ] Ved oppdatering sendes ETag-en med. Har noen andre endret raden i mellomtiden, avviser Table Storage lagringen.
-- [ ] Bestem hva handleren skal gjøre da, og hva controlleren svarer (409 Conflict?)
+**Bibliotek:** `SixLabors.ImageSharp` er enklest å bruke. Sjekk lisensen: den er gratis for privatpersoner og små
+virksomheter, men ikke for alle. `SkiaSharp` er et alternativ med MIT-lisens, men med et mer krevende API.
 
-### Del 4: Testene
-- [ ] Enhetstestene bruker fortsatt `InMemoryCatDatabase`. Ingen endring.
-- [ ] Komponenttestene bytter ut `ICatDatabase` med `InMemoryCatDatabase` via `ConfigureTestServices`,
-      så de ikke trenger Azurite
-- [ ] Nye tester for `TableCatDatabase` som kjører mot ekte Azurite: lagre, hente, slette, ETag-konflikt
-- [ ] CI starter Azurite som en *service container* i GitHub Actions, så disse testene også kjører der
+### Del 4: Visning og sletting
+- [ ] `GET api/public/cats/{catId}/images` gir en liste over bildene til katten
+- [ ] `GET api/public/cats/{catId}/images/{imageId}?size=thumb|large` gir selve bildet, med riktig `Content-Type`
+      og `Cache-Control`, så nettleseren ikke laster det ned på nytt hver gang
+- [ ] `DELETE api/admin/cats/{catId}/images/{imageId}` sletter både blobene og raden i tabellen
+- [ ] Når en **katt** slettes, slettes bildene også
+
+**Tester**
+- [ ] Enhetstester: validering av filtype og størrelse, og at `IImageProcessor` gir riktige størrelser uten EXIF
+- [ ] Integrasjonstester: `BlobImageStore` mot Azurite
+- [ ] Komponenttest: last opp et lite bilde med `MultipartFormDataContent`, hent miniatyren, og sjekk `Content-Type`
 
 **Ferdig når**
-- [ ] Opprett en katt, stopp appen, start den igjen, og katten er der fortsatt
+- [ ] Du kan laste opp et bilde fra `.http`-fila og åpne miniatyren i nettleseren
 - [ ] Alle tester er grønne lokalt og i CI
 - [ ] Merget via PR
 
-**Det kan være lurt å slå opp:** «Azurite», «Azure.Data.Tables», `TableClient`, `ITableEntity`, `TableEntity`,
-«PartitionKey RowKey design», `ETag`, `UpdateEntityAsync`, `TableUpdateMode`, «GitHub Actions service containers».
+**Det kan være lurt å slå opp:** «Azure.Storage.Blobs», `BlobContainerClient`, `UploadAsync`, `OpenReadAsync`,
+`IFormFile`, `[RequestSizeLimit]`, «multipart/form-data», `File(stream, contentType)` i en controller,
+«Cache-Control», «EXIF GPS», `Image.LoadAsync`, `Mutate(x => x.Resize(...))`.
 
 ---
 
