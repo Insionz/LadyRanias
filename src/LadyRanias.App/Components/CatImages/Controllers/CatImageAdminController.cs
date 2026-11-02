@@ -1,0 +1,31 @@
+﻿using LadyRanias.App.Components.CatImages.Api;
+using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
+
+namespace LadyRanias.App.Components.CatImages.Controllers;
+
+[ApiController]
+[Route("api/admin/cats")]
+public sealed class CatImageAdminController(ICatImageHandler handler) : ControllerBase
+{
+    [HttpPost]
+    [RequestSizeLimit(11 * 1024 * 1024)]
+    [Route("{catId:guid}/images")]
+    public async Task<IActionResult> Upload(Guid catId, IFormFile formFile, CancellationToken cancellationToken)
+    {
+        using var content = formFile.OpenReadStream();
+
+        try
+        {
+            var response = await handler.UploadAsync(catId, content, formFile.ContentType, formFile.Length, cancellationToken);
+
+            if (response == null) return NotFound();
+
+            return StatusCode(StatusCodes.Status201Created, response);
+        }
+        catch (ValidationException ex)
+        {
+            return ValidationProblem(detail: ex.Message);
+        }
+    }
+}

@@ -10,8 +10,4 @@
 	<InternalsVisibleTo Include="LadyRanias.Tests" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Components\CatImages\Api\" />
-  </ItemGroup>
-
 </Project>
