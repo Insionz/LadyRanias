@@ -1,4 +1,4 @@
-﻿using LadyRanias.App.Components.CatImages.Api;
+using LadyRanias.App.Components.CatImages.Api;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
@@ -27,5 +27,13 @@ public sealed class CatImageAdminController(ICatImageHandler handler) : Controll
         {
             return ValidationProblem(detail: ex.Message);
         }
+    }
+
+    [HttpDelete("{catId:guid}/images/{imageId:guid}")]
+    public async Task<IActionResult> Delete(Guid catId, Guid imageId, CancellationToken cancellationToken)
+    {
+        var deleted = await handler.DeleteAsync(catId, imageId, cancellationToken);
+
+        return deleted ? NoContent() : NotFound();
     }
 }

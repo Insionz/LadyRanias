@@ -1,9 +1,12 @@
-﻿using LadyRanias.App.Components.Cats.Api;
+using LadyRanias.App.Components.Cats.Api;
 using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Cats.Impl;
 
-internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvider) : ICatHandler
+internal sealed class CatHandler(
+    ICatDatabase database,
+    TimeProvider timeProvider,
+    IEnumerable<ICatDeletedListener> deletedListeners) : ICatHandler
 {
     public async Task<IReadOnlyList<CatDto>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -60,7 +63,22 @@ internal sealed class CatHandler(ICatDatabase database, TimeProvider timeProvide
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await database.DeleteAsync(id, cancellationToken);
+        var deleted = await database.DeleteAsync(id, cancellationToken);
+
+        if (!deleted)
+        {
+            return false;
+        }
+
+        // Katten slettes først. Feiler oppryddingen etterpå, blir det liggende bilder ingen ser,
+        // i stedet for en katt som har mistet bildene sine.
+        // CancellationToken.None: oppryddingen skal fullføres selv om forespørselen avbrytes.
+        foreach (var listener in deletedListeners)
+        {
+            await listener.OnCatDeletedAsync(id, CancellationToken.None);
+        }
+
+        return true;
     }
 
     private static void Validate(SexEnum sex, DateOnly birthDate, DateTimeOffset now)
