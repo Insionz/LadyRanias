@@ -20,5 +20,29 @@ GET {{host}}/api/public/cats
 ### Hent den vi nettopp opprettet
 GET {{host}}/api/public/cats/{{createCat.response.body.$.id}}
 
-### Slett den
+### Last opp bilde (bytt ut stien med et ekte bilde)
+# @name uploadImage
+POST {{host}}/api/admin/cats/{{createCat.response.body.$.id}}/images
+Content-Type: multipart/form-data; boundary=grense
+
+--grense
+Content-Disposition: form-data; name="formFile"; filename="kiara.jpg"
+Content-Type: image/jpeg
+
+< C:\Users\insio\Pictures\kiara.jpg
+--grense--
+
+### Liste over bildene til katten
+GET {{host}}/api/public/cats/{{createCat.response.body.$.id}}/images
+
+### Miniatyr (åpne også adressen i nettleseren for å se bildet)
+GET {{host}}/api/public/cats/{{createCat.response.body.$.id}}/images/{{uploadImage.response.body.$.imageId}}?size=thumb
+
+### Stort bilde
+GET {{host}}/api/public/cats/{{createCat.response.body.$.id}}/images/{{uploadImage.response.body.$.imageId}}?size=large
+
+### Slett bildet
+DELETE {{host}}/api/admin/cats/{{createCat.response.body.$.id}}/images/{{uploadImage.response.body.$.imageId}}
+
+### Slett katten (sletter også bildene)
 DELETE {{host}}/api/admin/cats/{{createCat.response.body.$.id}}

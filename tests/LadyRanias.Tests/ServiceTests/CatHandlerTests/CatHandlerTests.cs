@@ -1,4 +1,4 @@
-﻿using LadyRanias.App.Components.Cats.Api;
+using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
 using Microsoft.Extensions.Time.Testing;
 using System.ComponentModel.DataAnnotations;
@@ -11,6 +11,7 @@ public sealed class CatHandlerTests
     private static readonly DateTimeOffset Start = new(2026, 10, 29, 12, 0, 0, TimeSpan.Zero);
     private readonly FakeTimeProvider _clock = new FakeTimeProvider(Start);
     private readonly CatHandler _handler;
+    private readonly RecordingListener _listener = new();
     private readonly InMemoryCatDatabase _database = new();
     private readonly List<CatEntity> _cats = new()
     {
@@ -36,7 +37,7 @@ public sealed class CatHandlerTests
 
     public CatHandlerTests()
     {
-        _handler = new CatHandler(_database, _clock);
+        _handler = new CatHandler(_database, _clock, [_listener]);
     }
 
     [TestInitialize]
@@ -167,5 +168,35 @@ public sealed class CatHandlerTests
         var response = await _handler.CreateAsync(catBornToday, CancellationToken.None);
 
         Assert.AreEqual(birthDateToday, response.BirthDate);
+    }
+
+    [TestMethod]
+    public async Task Delete_existing_cat_notifies_listeners()
+    {
+        var cat = _cats.First();
+
+        await _handler.DeleteAsync(cat.Id, CancellationToken.None);
+
+        CollectionAssert.AreEqual(new[] { cat.Id }, _listener.DeletedCatIds);
+    }
+
+    [TestMethod]
+    public async Task Delete_unknown_cat_does_not_notify_listeners()
+    {
+        await _handler.DeleteAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.HasCount(0, _listener.DeletedCatIds);
+    }
+
+    /// <summary>Husker hvilke katter den har fått beskjed om, så testen kan sjekke at CatHandler sier fra.</summary>
+    private sealed class RecordingListener : ICatDeletedListener
+    {
+        public List<Guid> DeletedCatIds { get; } = [];
+
+        public Task OnCatDeletedAsync(Guid catId, CancellationToken cancellationToken)
+        {
+            DeletedCatIds.Add(catId);
+            return Task.CompletedTask;
+        }
     }
 }
