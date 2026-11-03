@@ -138,4 +138,11 @@ public sealed class CatApiTests
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
         StringAssert.Contains(await response.Content.ReadAsStringAsync(), "BirthDate");
     }
+
+    [TestMethod]
+    public async Task Unknown_api_route_returns_not_found()
+    {
+        var response = await _httpClient.GetAsync("api/finnes-ikke");
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }
