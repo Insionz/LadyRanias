@@ -9,6 +9,9 @@ export default defineConfig({
         emptyOutDir: true,
     },
     server: {
+        // Fast port: SpaProxy i .NET forventer Vite akkurat her (SpaProxyServerUrl i .csproj).
+        port: 5173,
+        strictPort: true,
         proxy: {
             '/api': 'http://localhost:5127',
         },
