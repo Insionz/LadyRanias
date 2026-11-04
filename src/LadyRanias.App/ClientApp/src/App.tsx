@@ -6,12 +6,14 @@ import classes from './App.module.css'
 import HomePage from './pages/HomePage'
 import CatsPage from './pages/CatsPage'
 import CatPage from './pages/CatPage'
+import LittersPage from './pages/LittersPage'
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 const links = [
   { to: '/', label: 'Hjem' },
   { to: '/katter', label: 'Katter' },
+  { to: '/kull', label: 'Kull' },
   { to: '/kontakt', label: 'Kontakt' },
 ]
 
@@ -73,6 +75,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/katter" element={<CatsPage />} />
           <Route path="/katter/:id" element={<CatPage />} />
+          <Route path="/kull" element={<LittersPage />} />
           <Route path="/kontakt" element={<ContactPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

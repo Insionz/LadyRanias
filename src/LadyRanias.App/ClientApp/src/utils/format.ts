@@ -1,4 +1,4 @@
-import type { Sex } from '../types/types'
+import type { KittenStatus, Sex } from '../types/types'
 
 export function sexLabel(sex: Sex) {
   switch (sex) {
@@ -39,4 +39,25 @@ export function ageLabel(isoDate: string, today: Date = new Date()) {
     return months === 1 ? '1 måned' : `${months} måneder`
   }
   return `${Math.floor(months / 12)} år`
+}
+
+/** Tekst og farge på merket for en kattunge. Fargene er Mantine-farger. */
+export function kittenStatusBadge(status: KittenStatus): { label: string; color: string } {
+  switch (status) {
+    case 'Available':
+      return { label: 'Ledig', color: 'green' }
+    case 'Reserved':
+      return { label: 'Reservert', color: 'yellow' }
+    case 'Sold':
+      return { label: 'Solgt', color: 'gray' }
+    case 'Kept':
+      return { label: 'Blir hos oss', color: 'grape' }
+  }
+}
+
+const monthFormat = new Intl.DateTimeFormat('nb-NO', { month: 'long', year: 'numeric' })
+
+/** «desember 2026». Et planlagt kull har sjelden en nøyaktig dato. */
+export function formatMonth(isoDate: string) {
+  return monthFormat.format(parseDate(isoDate))
 }
