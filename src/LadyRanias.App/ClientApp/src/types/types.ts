@@ -17,3 +17,30 @@ export type CatImage = {
 }
 
 export type ImageSize = 'thumb' | 'large'
+
+export type LitterStatus = 'Planned' | 'Born'
+
+export type KittenStatus = 'Available' | 'Reserved' | 'Sold' | 'Kept'
+
+export type Kitten = {
+  id: string
+  litterId: string
+  name: string
+  sex: Sex
+  status: KittenStatus
+  description: string
+  createdAt: string
+}
+
+export type Litter = {
+  id: string
+  name: string
+  motherId: string
+  fatherId: string
+  status: LitterStatus
+  expectedDate: string | null
+  birthDate: string | null
+  description: string
+  createdAt: string
+  kittens: Kitten[]
+}
