@@ -20,4 +20,23 @@
 	<InternalsVisibleTo Include="LadyRanias.Tests" />
   </ItemGroup>
 
+  <!--
+    Ved dotnet publish: bygg React-appen og ta med filene i publiseringen.
+    Vite legger filene i wwwroot (se outDir i vite.config.ts). Siden de lages underveis i publiseringen,
+    må vi legge dem til listen over filer som skal publiseres selv.
+  -->
+  <Target Name="PublishClientApp" AfterTargets="ComputeFilesToPublish">
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+
+    <ItemGroup>
+      <ClientDistFiles Include="wwwroot\**" />
+      <ResolvedFileToPublish Include="@(ClientDistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>%(ClientDistFiles.Identity)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
 </Project>
