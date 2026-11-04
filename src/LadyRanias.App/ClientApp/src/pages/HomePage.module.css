@@ -1,0 +1,29 @@
+.hero {
+  position: relative;
+  min-height: min(60vh, 560px);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background-color: var(--mantine-color-grape-9);
+}
+
+/* Mørk toning nederst, så teksten alltid er lesbar uansett bilde. */
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.65), rgb(0 0 0 / 0.1) 60%, transparent);
+}
+
+.content {
+  position: relative;
+  width: 100%;
+  padding: var(--mantine-spacing-xl);
+  color: var(--mantine-color-white);
+}
+
+.breed {
+  color: inherit;
+  font-size: clamp(2.6rem, 8vw, 5.5rem);
+  line-height: 1.1;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.4);
+}

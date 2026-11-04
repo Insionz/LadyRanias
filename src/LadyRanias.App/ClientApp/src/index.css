@@ -1,0 +1,23 @@
+/* Egne globale stiler. Lastes etter Mantine, så det som står her vinner. */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Myk inngang for innhold. Slås av for dem som har bedt om mindre bevegelse. */
+.fade-up {
+  animation: fade-up 600ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
+  }
+}

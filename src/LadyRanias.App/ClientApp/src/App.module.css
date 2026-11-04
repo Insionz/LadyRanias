@@ -1,0 +1,28 @@
+.logo {
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+/* Blir navnet for langt for skjermen, kuttes det med «…» i stedet for å bryte linjen. */
+.logoTitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control {
+  display: block;
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+  border-radius: var(--mantine-radius-md);
+  font-weight: 600;
+
+  @mixin hover {
+    background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  }
+
+  /* NavLink fra react-router setter aria-current="page" på lenken til siden vi står på. */
+  &[aria-current='page'] {
+    color: var(--mantine-primary-color-filled);
+  }
+}
