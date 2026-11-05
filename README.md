@@ -33,8 +33,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 5 | Bilder: komponenten **CatImages** med Blob Storage, to størrelser i WebP uten metadata, sletting når katten slettes | ✅ |
 | 6 | Frontend: React + TypeScript strict + Vite + Mantine, servert av appen, offentlige sider (forside, katter, katt, kontakt, 404) | ✅ |
 | 7 | Komponent **Litters** (kull og kattunger): planlagt og født, kattunger ledig, reservert, solgt og beholdes, side for kull | ✅ |
-| 8 | Admin: innlogging med Microsoft Entra External ID, rollen `Admin`, `api/admin` beskyttet, adminsider | Pågår |
-| 9 | Kontaktskjema: validering, spambeskyttelse, e-postvarsel via bakgrunnsjobb | |
+| 8 | Admin: innlogging med Microsoft Entra External ID, rollen `Admin`, `api/admin` beskyttet, adminsider | ✅ |
+| 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | Pågår |
 | 10 | Container-image (chiseled), bygget og publisert fra `main` | |
 | 11 | Deploy til **test** i Azure Container Apps, automatisk fra `main` | |
 | 12 | Deploy til **prod** etter godkjenning, eget domene fra one.com, HTTPS | |
@@ -308,6 +308,125 @@ Hvis Entra sender deg tilbake til `/signin-oidc` på port 5173, svarer Vite med 
 ---
 
 e).
+
+---
+
+## Steg 9: Kontaktskjema
+
+**Mål:** Besøkende kan sende en melding til oppdretter fra siden «Kontakt». Meldingen lagres, oppdretter får
+e-postvarsel, og hun kan lese og svare på meldingene fra adminsiden. Skjemaet skal tåle spam og ikke miste meldinger,
+selv om e-posttjenesten er nede en stund.
+
+### Slik virker det
+
+```
+Besøkende ──POST api/public/contact──► ContactController
+                                         │ 1. valider (felt, honeypot, rate limit)
+                                         │ 2. lagre meldingen i tabellen «contactmessages»   (Status = New)
+                                         │ 3. legg meldingens id i køen «contact-notifications»
+                                         ▼
+                                     202 Accepted   ◄── svarer med en gang, venter ikke på e-post
+
+                      ┌──────── bakgrunnsjobb (BackgroundService) ────────┐
+                      │ henter fra køen → leser meldingen → sender e-post │
+                      │ OK:  sletter fra køen                             │
+                      │ Feil: lar den ligge, prøver igjen senere          │
+                      │ 5 feil på rad: flyttes til «...-poison»           │
+                      └───────────────────────────────────────────────────┘
+```
+
+**Hvorfor kø, og ikke bare sende e-posten direkte i controlleren?**
+- Besøkende slipper å vente på e-posttjenesten.
+- Er e-posttjenesten nede, går meldingen ikke tapt. Den ligger i tabellen og i køen, og blir sendt senere.
+- Det er samme mønster du vil møte i større systemer: lagre først, gjør det tunge arbeidet i bakgrunnen.
+
+Køen er **Azure Queue Storage**, som ligger i samme Storage-konto som tabellene og bildene. Azurite har den allerede,
+på port 10001.
+
+### Ny komponent: `Contact`
+Samme oppbygning som de andre: `Api/`, `Impl/`, `Controllers/` og `ContactComponent.cs`.
+
+```
+ContactMessage
+──────────────
+Id
+Name           påkrevd, maks 100 tegn
+Email          påkrevd, gyldig e-post, maks 200 tegn
+Phone          valgfri, maks 30 tegn
+Subject        valgfri, for eksempel «Kull våren 2027» eller navnet på en kattunge
+Message        påkrevd, 10–4000 tegn
+Status         New | Read | Answered
+EmailSentAt    null til varselet er sendt
+CreatedAt
+```
+
+### Del 1: Ta imot og lagre
+- [ ] `ContactMessageDto`, `CreateContactMessageDto` (med `[Required]`, `[EmailAddress]`, `[StringLength]`)
+- [ ] `IContactHandler` og `ContactHandler`, `IContactDatabase` med versjon i minnet og `TableContactDatabase`
+- [ ] `POST api/public/contact` → **202 Accepted** (ikke 201: varselet er ikke sendt ennå, det skjer i bakgrunnen)
+- [ ] Tabellen `contactmessages` med **én partisjon** (`"message"`), som for katter. Måned som partisjon ble vurdert,
+      men da må man vite måneden for å slå opp én melding. Med noen titalls meldinger i året er det mer komplisert
+      enn det er verdt (YAGNI). Sletting etter 12 måneder blir et filter på `CreatedAt`.
+
+### Del 2: Spambeskyttelse
+Uten innlogging kan hvem som helst sende, også roboter. Tre enkle lag, uten CAPTCHA:
+- [ ] **Honeypot:** et skjult felt `Website` i skjemaet. Mennesker ser det ikke og lar det stå tomt, mens enkle roboter
+      fyller ut alt. Er det fylt ut, svarer vi 202 som om alt gikk bra, men lagrer ingenting. Da lærer ikke roboten noe.
+- [ ] **Rate limiting** med innebygd `AddRateLimiter`: for eksempel 5 meldinger per time per IP-adresse.
+      Svarer **429 Too Many Requests**. IP-adressen kommer fra `X-Forwarded-For`, som vi satte opp i steg 8.
+- [ ] **Lengdegrenser** på alle felt (over), så ingen kan sende en melding på 10 MB.
+
+Holder ikke dette, kan vi legge til Cloudflare Turnstile senere. Det er en usynlig CAPTCHA uten bildeoppgaver.
+
+### Del 3: Kø og bakgrunnsjobb
+- [ ] `QueueServiceClient` (pakken `Azure.Storage.Queues`), køen `contact-notifications`
+- [ ] Handleren legger meldingens **id** i køen, ikke hele meldingen. Køen skal ikke inneholde personopplysninger.
+- [ ] `ContactNotificationWorker : BackgroundService`:
+  - henter meldinger fra køen med `ReceiveMessagesAsync` og en *visibility timeout* (meldingen er skjult for andre mens vi jobber)
+  - sender e-post via `IEmailSender`, setter `EmailSentAt`, og sletter meldingen fra køen
+  - feiler det, gjør vi ingenting: meldingen blir synlig igjen etter timeouten og prøves på nytt
+  - etter 5 forsøk (`DequeueCount`) flyttes den til køen `contact-notifications-poison` og logges som feil
+  - venter litt mellom rundene når køen er tom, så den ikke spør Azure hundre ganger i sekundet
+- [ ] Enhetstester av arbeideren med en falsk kø og en falsk `IEmailSender`, som feiler et bestemt antall ganger
+
+### Del 4: E-post med Azure Communication Services
+- [ ] `IEmailSender` i `Impl/`, med to versjoner:
+  - `LogEmailSender`: skriver e-posten til loggen. Brukes lokalt, i tester og i CI.
+  - `AcsEmailSender`: sender via Azure Communication Services (pakken `Azure.Communication.Email`)
+- [ ] Hvilken som brukes, styres av konfigurasjonen, slik som med Entra i steg 8: finnes `Email:ConnectionString`,
+      brukes ACS, og ellers loggen. I produksjon skal den mangle-sjekken feile tydelig.
+- [ ] E-posten går til `Email:NotifyAddress` (mammas adresse, i user secrets og senere som secret i Azure)
+- [ ] **Reply-To** settes til den besøkendes e-post, så mamma kan trykke «Svar» rett i e-postprogrammet
+- [ ] Teksten i e-posten er ren tekst, ikke HTML. Det besøkende skriver, skal aldri tolkes som HTML.
+
+**Oppsett i Azure** (gjøres for hånd, når del 1–3 virker):
+- [ ] Opprett **Communication Services** og **Email Communication Services** i `rg-ladyranias`
+- [ ] Legg til et **Azure-administrert domene** (`…azurecomm.net`) for å komme i gang. Eget domene fra one.com tas i steg 12.
+- [ ] Koble domenet til Communication Services-ressursen
+- [ ] Legg tilkoblingsstrengen og avsenderadressen i user secrets:
+      `Email:ConnectionString`, `Email:SenderAddress`, `Email:NotifyAddress`
+
+### Del 5: Frontend
+- [ ] Kontaktsiden: skjema med navn, e-post, telefon (valgfri), emne og melding, og honeypot-feltet skjult med CSS
+- [ ] «Takk, vi svarer så snart vi kan» etter sending, og tydelige feilmeldinger ved 400 og 429
+- [ ] En kort tekst om hva opplysningene brukes til (personvern)
+- [ ] Lenke «Spør om denne kattungen» fra kull-siden, som fyller ut emnet
+- [ ] **Admin:** ny fane «Meldinger» med lista, status (ny, lest, besvart), og lenke `mailto:` for å svare
+
+**Personvern**
+- [ ] Meldinger slettes automatisk etter 12 måneder. Det kan gjøres i den samme bakgrunnsjobben, én gang i døgnet.
+- [ ] Adminsiden kan slette en melding med en gang, hvis noen ber om det
+
+**Ferdig når**
+- [ ] En melding fra kontaktsiden havner i adminsiden, og lokalt står e-posten i loggen
+- [ ] Med ACS satt opp kommer e-posten fram, og «Svar» går til den som skrev
+- [ ] Honeypot, 429 og poison-køen er dekket av tester
+- [ ] Alle tester er grønne lokalt og i CI
+- [ ] Merget via PR
+
+**Det kan være lurt å slå opp:** `BackgroundService`, `Azure.Storage.Queues`, `ReceiveMessagesAsync`,
+«visibility timeout», «poison queue», `AddRateLimiter`, `RequireRateLimiting`, «honeypot spam»,
+«Azure Communication Services Email .NET», `EmailClient.SendAsync`, «Reply-To».
 
 ---
 
