@@ -46,3 +46,85 @@ DELETE {{host}}/api/admin/cats/{{createCat.response.body.$.id}}/images/{{uploadI
 
 ### Slett katten (sletter også bildene)
 DELETE {{host}}/api/admin/cats/{{createCat.response.body.$.id}}
+
+### ---------- Kull og kattunger ----------
+
+### Mor
+# @name createMother
+POST {{host}}/api/admin/cats
+Content-Type: application/json
+
+{
+  "name": "Kiara",
+  "sex": "Female",
+  "birthDate": "2022-03-01",
+  "description": "Mor til A-kullet"
+}
+
+### Far
+# @name createFather
+POST {{host}}/api/admin/cats
+Content-Type: application/json
+
+{
+  "name": "Børre",
+  "sex": "Male",
+  "birthDate": "2021-05-01",
+  "description": "Far til A-kullet"
+}
+
+### Planlagt kull
+# @name createLitter
+POST {{host}}/api/admin/litters
+Content-Type: application/json
+
+{
+  "name": "A-kullet",
+  "motherId": "{{createMother.response.body.$.id}}",
+  "fatherId": "{{createFather.response.body.$.id}}",
+  "expectedDate": "2026-12-15",
+  "description": "Vårt første kull"
+}
+
+### Kattunge før fødsel (skal gi 409)
+POST {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/kittens
+Content-Type: application/json
+
+{ "name": "Ask", "sex": "Male" }
+
+### Kullet er født
+POST {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/born
+Content-Type: application/json
+
+{ "birthDate": "2026-11-01" }
+
+### Kattunge
+# @name createKitten
+POST {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/kittens
+Content-Type: application/json
+
+{ "name": "Ask", "sex": "Male", "description": "Rolig og nysgjerrig" }
+
+### Reserver
+PUT {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/kittens/{{createKitten.response.body.$.id}}/status
+Content-Type: application/json
+
+{ "status": "Reserved" }
+
+### Selg
+PUT {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/kittens/{{createKitten.response.body.$.id}}/status
+Content-Type: application/json
+
+{ "status": "Sold" }
+
+### Reserver en solgt kattunge (skal gi 409)
+PUT {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}/kittens/{{createKitten.response.body.$.id}}/status
+Content-Type: application/json
+
+{ "status": "Reserved" }
+
+### Alle kull (offentlig)
+GET {{host}}/api/public/litters
+
+### Slett kullet (sletter også kattungene)
+DELETE {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}
