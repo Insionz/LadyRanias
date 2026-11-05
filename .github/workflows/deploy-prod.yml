@@ -1,0 +1,42 @@
+name: Deploy til prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit-SHA som skal i prod. Tom = siste commit på main (den som nettopp gikk til test).'
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Velg versjon
+      id: version
+      run: echo "sha=${{ inputs.sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+    - name: Logg inn i Azure (OIDC)
+      uses: azure/login@v2
+      with:
+        client-id: ${{ vars.AZURE_CLIENT_ID }}
+        tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    # Stopp hvis imaget ikke finnes, i stedet for å lage en prod-versjon som ikke kan starte
+    - name: Sjekk at imaget finnes
+      run: |
+        az acr repository show-tags --name ${{ vars.ACR_NAME }} --repository ladyranias \
+          --query "[?@=='${{ steps.version.outputs.sha }}']" -o tsv | grep -q . \
+          || { echo "Fant ikke ladyranias:${{ steps.version.outputs.sha }} i registryet"; exit 1; }
+
+    - name: Deploy til prod
+      run: |
+        az config set extension.use_dynamic_install=yes_without_prompt
+        az containerapp update \
+          --name ${{ vars.CONTAINER_APP_PROD }} \
+          --resource-group ${{ vars.RESOURCE_GROUP }} \
+          --image ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ steps.version.outputs.sha }}
