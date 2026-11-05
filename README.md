@@ -211,7 +211,9 @@ Dette heter **OpenID Connect** (OIDC). Entra gjør *autentisering* (hvem er du?)
   - `http://localhost:5173/api/auth/signin-oidc` (når du utvikler via Vite)
   - `http://localhost:5127/api/auth/signin-oidc` (når appen kjører alene)
   - Senere: `https://<domenet>/api/auth/signin-oidc` i steg 12
-- [ ] Front-channel logout URL: `http://localhost:5173/api/auth/signout-oidc`
+  - `http://localhost:5173/api/auth/signout-callback-oidc` (hit sender Entra brukeren etter utlogging)
+- [ ] La *Front-channel logout URL* stå tom. Den krever HTTPS og trengs bare hvis Entra skal varsle appen om utlogging
+      andre steder.
 - [ ] **Certificates & secrets → New client secret.** Kopier *Value* med én gang, den vises bare én gang.
       Noter utløpsdatoen i kalenderen: hemmeligheter i Entra varer maks to år.
 - [ ] Noter **Application (client) ID** og **Directory (tenant) ID** fra *Overview*

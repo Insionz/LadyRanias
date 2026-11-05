@@ -1,4 +1,4 @@
-﻿using LadyRanias.App.Components.Cats.Api;
+using LadyRanias.App.Components.Cats.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -46,17 +46,24 @@ public sealed class CatAdminController(ICatHandler handler) : ControllerBase
         }
     }
 
-    [HttpPut("{id:guid}/change")]
-    public async Task<ActionResult<CatDto?>> ChangeCatName(Guid id, ChangeNameDto changeNameDto, CancellationToken ct)
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<CatDto>> Update(Guid id, UpdateCatDto updateCatDto, CancellationToken ct)
     {
-        var changedCat = await handler.SaveNameAsync(id, changeNameDto, ct);
-
-        if (changedCat == null)
+        try
         {
-            return NotFound();
-        }
+            var updatedCat = await handler.UpdateAsync(id, updateCatDto, ct);
 
-        return changedCat;
+            if (updatedCat == null)
+            {
+                return NotFound();
+            }
+
+            return updatedCat;
+        }
+        catch (ValidationException ex)
+        {
+            return ValidationProblem(detail: ex.Message);
+        }
     }
 
     [HttpDelete("{id:guid}")]

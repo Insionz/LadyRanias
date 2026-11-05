@@ -9,6 +9,7 @@ import CatPage from './pages/CatPage'
 import LittersPage from './pages/LittersPage'
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
+import AdminPage from './pages/admin/AdminPage'
 
 const links = [
   { to: '/', label: 'Hjem' },
@@ -77,6 +78,8 @@ export default function App() {
           <Route path="/katter/:id" element={<CatPage />} />
           <Route path="/kull" element={<LittersPage />} />
           <Route path="/kontakt" element={<ContactPage />} />
+          {/* Står ikke i menyen. Tilgangen styres av API-et, ikke av om lenken vises. */}
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppShell.Main>

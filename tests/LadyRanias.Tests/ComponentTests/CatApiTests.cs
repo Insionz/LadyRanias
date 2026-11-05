@@ -143,6 +143,49 @@ public sealed class CatApiTests
     }
 
     [TestMethod]
+    public async Task Update_then_get_returns_the_updated_cat()
+    {
+        var createResponse = await _httpClient.PostAsJsonAsync("api/admin/cats", new CreateCatDto
+        {
+            Name = "Mons",
+            Sex = SexEnum.Male,
+            BirthDate = new DateOnly(2024, 6, 1),
+            Description = "Testkatt",
+        }, Json);
+        var created = await createResponse.Content.ReadFromJsonAsync<CatDto>(Json);
+        Assert.IsNotNull(created);
+
+        var updateResponse = await _httpClient.PutAsJsonAsync($"api/admin/cats/{created.Id}", new UpdateCatDto
+        {
+            Name = "Mons Store",
+            Sex = SexEnum.Male,
+            BirthDate = new DateOnly(2024, 5, 20),
+            Description = "Har vokst",
+        }, Json);
+        Assert.AreEqual(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var fetched = await _httpClient.GetFromJsonAsync<CatDto>($"api/public/cats/{created.Id}", Json);
+        Assert.IsNotNull(fetched);
+        Assert.AreEqual("Mons Store", fetched.Name);
+        Assert.AreEqual(new DateOnly(2024, 5, 20), fetched.BirthDate);
+        Assert.AreEqual("Har vokst", fetched.Description);
+    }
+
+    [TestMethod]
+    public async Task Update_unknown_cat_returns_not_found()
+    {
+        var response = await _httpClient.PutAsJsonAsync($"api/admin/cats/{Guid.NewGuid()}", new UpdateCatDto
+        {
+            Name = "Ingen",
+            Sex = SexEnum.Male,
+            BirthDate = new DateOnly(2024, 5, 20),
+            Description = "Finnes ikke",
+        }, Json);
+
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task Unknown_api_route_returns_not_found()
     {
         var response = await _httpClient.GetAsync("api/finnes-ikke");
