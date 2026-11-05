@@ -36,8 +36,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 8 | Admin: innlogging med Microsoft Entra External ID, rollen `Admin`, `api/admin` beskyttet, adminsider | ✅ |
 | 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | ✅ |
 | 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | ✅ |
-| 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | Pågår |
-| 12 | Deploy til **prod** etter godkjenning, eget domene fra one.com, HTTPS | |
+| 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
+| 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | Pågår |
 | 13 | Observerbarhet: logger, helseprober, varsler | |
 
 ## Utsatt til senere
@@ -681,6 +681,186 @@ Container Apps beholder de gamle revisjonene, så det er lett å gå tilbake.
 `ForwardedHeadersOptions.KnownIPNetworks`.
 
 **Utsatt:** deploy av Bicep fra CI (i dag kjøres den for hånd), eget domene og helseprober (steg 12 og 13).
+
+---
+
+## Steg 12: Prod med eget domene
+
+**Mål:** Den ekte nettsiden kjører på **https://www.ladyranias.no**. Prod har egne data, atskilt fra test.
+En ny versjon går til prod bare når du trykker på en knapp, og da er det **nøyaktig det samme imaget** som er testet i test.
+
+```
+merge til main ──► CI: test, bygg, publiser ──► test (automatisk)
+                                                     │
+                                       du sjekker test, og trykker «Run workflow»
+                                                     ▼
+                                          prod (samme image, samme SHA)
+                                                     │
+                       www.ladyranias.no ──DNS hos one.com──► Container App «ca-ladyranias-prod»
+                       ladyranias.no ──────────────────────► (301 til www)
+```
+
+**Hvorfor samme image?** Det som er testet, er et bestemt image med en bestemt SHA. Bygger man på nytt for prod,
+er det i teorien et annet image. Vi bygger én gang og flytter det samme imaget videre. Det heter *build once, deploy many*.
+
+**Hvorfor en knapp, og ikke godkjenning i et GitHub-environment?** *Environments* med *required reviewers* er den vanlige
+måten i bedrifter, men i private repoer krever det GitHub Pro eller Team. En manuell workflow (`workflow_dispatch`) gir
+det samme: ingenting går til prod uten at du har bestemt det.
+
+### Del 0: Før du rører domenet
+- [ ] **Hva ligger på ladyranias.no i dag?** Har moren din en nettside der (for eksempel laget i one.com sin nettsidebygger),
+      forsvinner den når DNS peker til Azure. Ta vare på tekster og bilder som skal over til den nye siden.
+- [ ] **E-post på domenet** (for eksempel `post@ladyranias.no` hos one.com) påvirkes **ikke**, så lenge du bare endrer
+      oppføringene for nettsiden. **Ikke rør `MX`-oppføringene**, og ikke slett eksisterende `TXT`-oppføringer.
+- [ ] Logg inn i kontrollpanelet hos one.com, og finn **DNS-innstillinger** for domenet. Ta et skjermbilde av slik det er nå.
+
+### Del 1: Prod-miljøet med Bicep
+- [ ] `infra/prod.bicepparam`: samme som test, men `environmentName = 'prod'`, `minReplicas = 1` og
+      `canonicalHost = 'www.ladyranias.no'`
+- [ ] `main.bicep` har fått to nye parametere:
+  - `canonicalHost`: domenet uten www sendes til denne adressen (301). Koden ligger i `Program.cs`.
+  - `customDomains`: domenene og sertifikatene deres. **Uten dette ville neste deploy av Bicep fjernet domenene fra appen**,
+    fordi Bicep beskriver hele appen, og domener som ikke står der, regnes som «skal ikke være der».
+- [ ] Deploy, med **mammas** e-postadresse som `EMAIL_NOTIFY_ADDRESS`:
+
+```powershell
+$env:ENTRA_CLIENT_SECRET     = Read-Host "Entra client secret" -MaskInput
+$env:EMAIL_CONNECTION_STRING = Read-Host "ACS connection string" -MaskInput
+$env:EMAIL_NOTIFY_ADDRESS    = Read-Host "Adresse for e-postvarsler (mamma)"
+
+az deployment group what-if -g rg-ladyranias -f infra/main.bicep -p infra/prod.bicepparam
+az deployment group create  -g rg-ladyranias -f infra/main.bicep -p infra/prod.bicepparam
+```
+
+`what-if` skal vise ny storage-konto, identitet, roller og `ca-ladyranias-prod`, og **ingen endring** på det som er felles
+(`log-ladyranias`, `cae-ladyranias`) eller på test. Prod starter med tomme tabeller. Test-dataene blir i test.
+
+### Del 2: Knappen som deployer til prod
+- [ ] GitHub-variabel `CONTAINER_APP_PROD` = `ca-ladyranias-prod`
+- [ ] Ny fil `.github/workflows/deploy-prod.yml`:
+
+```yaml
+name: Deploy til prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit-SHA som skal i prod. Tom = siste commit på main (den som nettopp gikk til test).'
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Velg versjon
+      id: version
+      run: echo "sha=${{ inputs.sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+    - name: Logg inn i Azure (OIDC)
+      uses: azure/login@v2
+      with:
+        client-id: ${{ vars.AZURE_CLIENT_ID }}
+        tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    # Stopp hvis imaget ikke finnes, i stedet for å lage en prod-versjon som ikke kan starte
+    - name: Sjekk at imaget finnes
+      run: |
+        az acr repository show-tags --name ${{ vars.ACR_NAME }} --repository ladyranias \
+          --query "[?@=='${{ steps.version.outputs.sha }}']" -o tsv | grep -q . \
+          || { echo "Fant ikke ladyranias:${{ steps.version.outputs.sha }} i registryet"; exit 1; }
+
+    - name: Deploy til prod
+      run: |
+        az config set extension.use_dynamic_install=yes_without_prompt
+        az containerapp update \
+          --name ${{ vars.CONTAINER_APP_PROD }} \
+          --resource-group ${{ vars.RESOURCE_GROUP }} \
+          --image ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ steps.version.outputs.sha }}
+```
+
+Workflowen kjører fra `main`, så GitHub-innloggingen bruker samme *federated credential* som før. Rollen som lar GitHub
+oppdatere prod-appen, lager Bicep (`githubDeploy`). Under **Actions → Deploy til prod → Run workflow** finner du knappen.
+
+### Del 3: Domenet
+Container Apps gir **gratis HTTPS-sertifikat** som fornyes automatisk (*managed certificate*). For å få det må Azure
+kunne se at du eier domenet, og domenet må peke til appen.
+
+- [ ] Hent adressen til miljøet og verifiseringskoden:
+
+```powershell
+az containerapp env show -n cae-ladyranias -g rg-ladyranias `
+  --query "{ip:properties.staticIp, kode:properties.customDomainConfiguration.customDomainVerificationId}" -o table
+az containerapp show -n ca-ladyranias-prod -g rg-ladyranias --query properties.configuration.ingress.fqdn -o tsv
+```
+
+- [ ] **DNS hos one.com.** Legg til (eller endre) disse, og la alt annet være:
+
+| Type | Navn (vert) | Verdi | Hvorfor |
+|---|---|---|---|
+| `CNAME` | `www` | `ca-ladyranias-prod.<…>.norwayeast.azurecontainerapps.io` | `www` peker til appen |
+| `TXT` | `asuid.www` | verifiseringskoden | beviser at du eier `www.ladyranias.no` |
+| `A` | `@` (domenet uten noe foran) | IP-adressen til miljøet | domenet uten www peker til miljøet |
+| `TXT` | `asuid` | verifiseringskoden | beviser at du eier `ladyranias.no` |
+
+Finnes det allerede en `A`-oppføring for `@` eller en `CNAME`/`A` for `www` (til one.com sin nettside), skal den **endres**,
+ikke legges til ved siden av. DNS-endringer kan bruke fra noen minutter til noen timer på å slå gjennom.
+`nslookup www.ladyranias.no` viser når den peker riktig.
+
+- [ ] **Koble domenene til appen og lag sertifikatene:**
+
+```powershell
+az containerapp hostname add  -n ca-ladyranias-prod -g rg-ladyranias --hostname www.ladyranias.no
+az containerapp hostname bind -n ca-ladyranias-prod -g rg-ladyranias --hostname www.ladyranias.no `
+  --environment cae-ladyranias --validation-method CNAME
+
+az containerapp hostname add  -n ca-ladyranias-prod -g rg-ladyranias --hostname ladyranias.no
+az containerapp hostname bind -n ca-ladyranias-prod -g rg-ladyranias --hostname ladyranias.no `
+  --environment cae-ladyranias --validation-method HTTP
+```
+
+`www` bekreftes via `CNAME`-oppføringen. Domenet uten www kan ikke ha `CNAME`, så der bekrefter Azure ved å hente en fil
+over HTTP. Sertifikatet kan bruke noen minutter.
+
+- [ ] **Skriv domenene inn i `prod.bicepparam`**, så de ikke forsvinner ved neste deploy:
+
+```powershell
+az containerapp hostname list -n ca-ladyranias-prod -g rg-ladyranias --query "[].{name:name, certificateId:certificateId}" -o json
+```
+
+Kopier `name` og `certificateId` inn i `customDomains`, og kjør `what-if` for prod. Den skal ikke vise noen endring på domenene.
+
+- [ ] **Entra:** legg til `https://www.ladyranias.no/api/auth/signin-oidc` og `https://www.ladyranias.no/api/auth/signout-callback-oidc`
+      som redirect-URI-er. Domenet uten www trenger ikke, fordi det alltid sendes til www først.
+
+### Del 4: Mamma får tilgang
+- [ ] Hun går til `https://www.ladyranias.no/admin`, logger inn med e-posten sin og engangskoden, og ser «Ingen tilgang»
+- [ ] Gi henne rollen **Admin**: LadyRanias-tenanten → **Enterprise applications → LadyRanias → Users and groups**.
+      Velg brukeren som ble opprettet da hun logget inn (med lang id foran `@ladyranias.onmicrosoft.com`), ikke en med samme navn.
+- [ ] Hun logger inn på nytt, og kan legge inn katter, bilder og kull
+
+### Del 5 (valgfri): E-post fra domenet
+Varslene kommer i dag fra `DoNotReply@….azurecomm.net`. De kan komme fra `ikke-svar@ladyranias.no` i stedet.
+- [ ] **Email Communication Services → Provision domains → Add domain → Custom domain** `ladyranias.no`
+- [ ] Azure viser `TXT`- og `CNAME`-oppføringer (verifisering, SPF og DKIM) som legges inn hos one.com.
+      **Har domenet allerede en SPF-oppføring** (`v=spf1 …`, typisk fordi e-posten ligger hos one.com), skal Azure sin del
+      **flettes inn i den samme oppføringen**. Et domene kan bare ha én SPF-oppføring.
+- [ ] Koble domenet til Communication Services, og bytt `emailSenderAddress` i `prod.bicepparam`
+
+**Ferdig når**
+- [ ] `https://www.ladyranias.no` viser siden, med gyldig sertifikat
+- [ ] `https://ladyranias.no/katter` sendes til `https://www.ladyranias.no/katter`
+- [ ] Mamma kan logge inn og legge inn innhold, og får e-postvarsel fra kontaktskjemaet
+- [ ] **Run workflow** på «Deploy til prod» flytter samme SHA som i test over til prod
+- [ ] `what-if` for prod viser ingen endringer på domenene
+
+**Det kan være lurt å slå opp:** «Azure Container Apps custom domain managed certificate», «asuid TXT record»,
+«CNAME vs A record», «apex domain», «workflow_dispatch», «build once deploy many», «SPF record merge».
 
 ---
 

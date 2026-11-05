@@ -53,6 +53,26 @@ if (app.Environment.IsDevelopment())
 // Først, så alt etterpå ser riktig adresse.
 app.UseForwardedHeaders();
 
+// ladyranias.no (uten www) sendes videre til www.ladyranias.no med 301 (permanent).
+// Da finnes siden på én adresse, som er best for søkemotorer og for innloggingen (én redirect-URI i Entra).
+// Bare domenet uten www omdirigeres. Azure-adressen (….azurecontainerapps.io) virker som før.
+var canonicalHost = app.Configuration["CanonicalHost"];
+if (!string.IsNullOrEmpty(canonicalHost) && canonicalHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+{
+    var bareHost = canonicalHost["www.".Length..];
+    app.Use((context, next) =>
+    {
+        if (context.Request.Host.Host.Equals(bareHost, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = $"https://{canonicalHost}{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}";
+            context.Response.Redirect(target, permanent: true);
+            return Task.CompletedTask;
+        }
+
+        return next(context);
+    });
+}
+
 app.UseDefaultFiles();     // "/" to index.html
 app.UseStaticFiles();      // serverer filene i wwwroot
 app.UseHttpsRedirection();

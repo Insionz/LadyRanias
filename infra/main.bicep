@@ -26,6 +26,12 @@ param minReplicas int = 0
 @description('Object id til service principal for github-ladyranias. Får lov til å deploye nye versjoner av appen.')
 param githubPrincipalId string
 
+@description('Hovedadressen, for eksempel www.ladyranias.no. Besøk på domenet uten www sendes hit. Tom = ingen omdirigering.')
+param canonicalHost string = ''
+
+@description('Egne domener med sertifikat: [{ name, certificateId }]. Fylles inn etter at domenet er koblet til første gang (README steg 12). Uten denne ville en ny deploy fjernet domenene.')
+param customDomains array = []
+
 // ---- Innlogging (Entra External ID, steg 8). Id-er, ikke hemmeligheter. ----
 param entraInstance string
 param entraTenantId string
@@ -149,6 +155,13 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         external: true
         targetPort: 8080
         allowInsecure: false // http omdirigeres til https av Azure
+        customDomains: [
+          for domain in customDomains: {
+            name: domain.name
+            certificateId: domain.certificateId
+            bindingType: 'SniEnabled'
+          }
+        ]
       }
       registries: [
         {
@@ -173,6 +186,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
             { name: 'Storage__AccountName', value: storage.name }
             { name: 'ForwardedHeaders__TrustAllProxies', value: 'true' }
+            { name: 'CanonicalHost', value: canonicalHost }
             { name: 'AzureAd__Instance', value: entraInstance }
             { name: 'AzureAd__TenantId', value: entraTenantId }
             { name: 'AzureAd__ClientId', value: entraClientId }
