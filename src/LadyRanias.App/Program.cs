@@ -60,6 +60,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();      // etter innlogging, før controllerne ([EnableRateLimiting] på kontaktskjemaet)
 app.MapControllers();
-app.MapFallbackToFile("{*path:regex(^(?!api/).*$)}", "index.html");
+// React-ruter som /katter og /admin får index.html, så React kan vise riktig side.
+// nonfile: bare adresser UTEN filendelse. Ellers ville også /assets/index-….js fått index.html,
+//          fordi rutene kjøres før filene leveres (det var feilen i steg 11).
+// regex:   ikke api/... Ukjente API-adresser skal gi 404, ikke en nettside.
+app.MapFallbackToFile("{*path:nonfile:regex(^(?!api/).*$)}", "index.html");
 
 app.Run();
