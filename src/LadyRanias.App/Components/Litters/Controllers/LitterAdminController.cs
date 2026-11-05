@@ -1,10 +1,12 @@
 using LadyRanias.App.Components.Litters.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Litters.Controllers;
 
 [ApiController]
+[Authorize(Policy = "Admin")]
 [Route("api/admin/litters")]
 public sealed class LitterAdminController(ILitterHandler handler) : ControllerBase
 {

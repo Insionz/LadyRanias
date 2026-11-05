@@ -24,7 +24,10 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public ActionResult<MeDto> Me()
     {
-        return Ok(new MeDto(Name: User.FindFirst("name")?.Value, Email: User.FindFirst("email")?.Value, IsAdmin: User.IsInRole("Admin")));
+        return Ok(new MeDto(
+            Name: User.FindFirst("name")?.Value, 
+            Email: User.FindFirst("email")?.Value ?? User.FindFirst("preferred_username")?.Value, 
+            IsAdmin: User.IsInRole("Admin")));
 
     }
 

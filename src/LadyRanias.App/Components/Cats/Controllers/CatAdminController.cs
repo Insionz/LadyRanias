@@ -1,10 +1,12 @@
 ﻿using LadyRanias.App.Components.Cats.Api;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Cats.Controllers;
 
 [ApiController]
+[Authorize(Policy = "Admin")]
 [Route("api/admin/cats")]
 public sealed class CatAdminController(ICatHandler handler) : ControllerBase
 {
