@@ -94,3 +94,12 @@ jobs:
         docker tag ladyranias:${{ github.sha }} ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:main
         docker push ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ github.sha }}
         docker push ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:main
+
+          - name: Deploy til test
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          az containerapp update \
+            --name ${{ vars.CONTAINER_APP_TEST }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --image ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ github.sha }}
