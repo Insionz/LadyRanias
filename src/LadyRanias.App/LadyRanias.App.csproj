@@ -30,8 +30,8 @@
     må vi legge dem til listen over filer som skal publiseres selv.
   -->
   <Target Name="PublishClientApp" AfterTargets="ComputeFilesToPublish">
-    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
-    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+	<Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" Condition="'$(SkipClientBuild)' != 'true'" />
+	<Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" Condition="'$(SkipClientBuild)' != 'true'" />
 
     <ItemGroup>
       <ClientDistFiles Include="wwwroot\**" />

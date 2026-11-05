@@ -34,8 +34,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 6 | Frontend: React + TypeScript strict + Vite + Mantine, servert av appen, offentlige sider (forside, katter, katt, kontakt, 404) | ✅ |
 | 7 | Komponent **Litters** (kull og kattunger): planlagt og født, kattunger ledig, reservert, solgt og beholdes, side for kull | ✅ |
 | 8 | Admin: innlogging med Microsoft Entra External ID, rollen `Admin`, `api/admin` beskyttet, adminsider | ✅ |
-| 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | Pågår |
-| 10 | Container-image (chiseled), bygget og publisert fra `main` | |
+| 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | ✅ |
+| 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | Pågår |
 | 11 | Deploy til **test** i Azure Container Apps, automatisk fra `main` | |
 | 12 | Deploy til **prod** etter godkjenning, eget domene fra one.com, HTTPS | |
 | 13 | Observerbarhet: logger, helseprober, varsler | |
@@ -427,6 +427,110 @@ Holder ikke dette, kan vi legge til Cloudflare Turnstile senere. Det er en usynl
 **Det kan være lurt å slå opp:** `BackgroundService`, `Azure.Storage.Queues`, `ReceiveMessagesAsync`,
 «visibility timeout», «poison queue», `AddRateLimiter`, `RequireRateLimiting`, «honeypot spam»,
 «Azure Communication Services Email .NET», `EmailClient.SendAsync`, «Reply-To».
+
+---
+
+## Steg 10: Container-image
+
+**Mål:** Hele appen, altså .NET og den ferdigbygde React-appen, pakkes i ett lite og sikkert container-image.
+Hver PR sjekker at imaget kan bygges. Hver merge til `main` bygger og publiserer imaget til Azure Container Registry,
+klart til å kjøres i steg 11.
+
+### Hva er et container-image?
+En «pakke» med alt appen trenger for å kjøre: .NET-runtime, appen og React-filene. Imaget kjører likt på din maskin,
+i CI og i Azure, uten at noe må installeres der. Et **registry** er et lager for images, omtrent som NuGet for pakker.
+
+### Hvorfor «chiseled»?
+Microsoft lager .NET-images i tre størrelser:
+
+| Image | Størrelse | Inneholder |
+|---|---|---|
+| `aspnet:10.0` | ca. 220 MB | Ubuntu med skall, pakkebehandler og mange verktøy |
+| `aspnet:10.0-noble-chiseled` | ca. 110 MB | Bare det .NET trenger. Ingen skall, ingen pakkebehandler, kjører som ikke-root. |
+| `aspnet:10.0-noble-chiseled-extra` | ca. 125 MB | Som chiseled, pluss ICU (språk og datoformater) og tidssoner |
+
+Mindre innhold betyr færre sikkerhetshull å oppdatere, og at en angriper som kommer seg inn, ikke har noe skall å jobbe i.
+Vi bruker **`-extra`**, fordi appen formaterer datoer og kan trenge norske tidssoner.
+SkiaSharp fungerer, fordi vi bruker `NativeAssets.Linux.NoDependencies` (valgt i steg 5).
+
+### Del 1: Dockerfile med tre byggesteg (*multi-stage*)
+
+```
+┌─ 1. node:24 ───────────────┐   ┌─ 2. dotnet/sdk:10.0 ─────────┐   ┌─ 3. aspnet:10.0-noble-chiseled-extra ─┐
+│ npm ci                      │   │ dotnet restore               │   │ bare den ferdige appen               │
+│ npm run build  → wwwroot ───┼──►│ dotnet publish  → /app ──────┼──►│ kjører som bruker «app», port 8080   │
+└─────────────────────────────┘   └──────────────────────────────┘   └──────────────────────────────────────┘
+       kastes etterpå                    kastes etterpå                      dette er imaget
+```
+
+- [ ] `Dockerfile` i roten av repoet
+- [ ] **Steg 1 (Node):** kopier først bare `package.json` og `package-lock.json`, kjør `npm ci`, og kopier så resten.
+      Da kan Docker gjenbruke `npm ci` fra forrige bygg (*layer caching*) når bare koden er endret.
+- [ ] **Steg 2 (.NET SDK):** samme triks: kopier `Directory.Build.props` og `.csproj` først, kjør `dotnet restore`, så resten.
+      Hent `wwwroot` fra steg 1, og kjør `dotnet publish -c Release -o /app -p:SkipClientBuild=true`.
+- [ ] **csproj:** publish-målet fra steg 6 kjører `npm ci` og `npm run build`. Det finnes ikke Node i SDK-imaget, og
+      React er uansett bygget i steg 1. Legg til `Condition="'$(SkipClientBuild)' != 'true'"` på de to `Exec`-linjene.
+- [ ] **Steg 3 (runtime):** `COPY --from=build /app .`, og `ENTRYPOINT ["dotnet", "LadyRanias.App.dll"]`.
+      Chiseled-imaget kjører allerede som ikke-root og lytter på port **8080**.
+- [ ] `.dockerignore`: `**/bin`, `**/obj`, `**/node_modules`, `**/wwwroot`, `.git`, `.vs`, `tests`, `.azurite`.
+      Uten den sendes alt til Docker, også `node_modules`, og byggingen blir treg.
+
+### Del 2: Kjør imaget lokalt
+- [ ] Installer **Docker Desktop**, hvis du ikke har det. Du har kanskje allerede Azurite i Docker.
+- [ ] `docker build -t ladyranias .` fra roten
+- [ ] Kjør med Azurite på maskinen din. Inne i containeren betyr `localhost` containeren selv, så adressen til
+      maskinen din er `host.docker.internal`:
+
+```powershell
+docker run --rm -p 8080:8080 `
+  -e ASPNETCORE_ENVIRONMENT=Development `
+  -e ConnectionStrings__Storage="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://host.docker.internal:10000/devstoreaccount1;QueueEndpoint=http://host.docker.internal:10001/devstoreaccount1;TableEndpoint=http://host.docker.internal:10002/devstoreaccount1;" `
+  ladyranias
+```
+
+Nøkkelen over er Azurites offentlige standardnøkkel, ikke en hemmelighet.
+`Development` fordi `Production` krever Entra og e-post (steg 8 og 9), og stopper appen hvis de mangler.
+Det er akkurat det vi vil i Azure, men ikke her.
+
+- [ ] Åpne `http://localhost:8080`, og se at forsiden og kattene vises
+- [ ] `docker images ladyranias` viser størrelsen. Den bør være rundt 130–150 MB.
+
+`__` (dobbel understrek) i navnet på miljøvariabelen betyr `:` i konfigurasjonen, så `ConnectionStrings__Storage` blir
+`ConnectionStrings:Storage`. Det er slik Azure gir appen innstillinger i steg 11.
+
+### Del 3: Azure Container Registry og innlogging fra GitHub uten passord
+- [ ] Opprett **Container registry** i `rg-ladyranias`: navn for eksempel `crladyranias` (bare små bokstaver og tall),
+      plan **Basic**, region Norway East eller West Europe
+- [ ] **Domain name label scope: Tenant Reuse.** Azure legger til en fast hash i adressen
+      (`crladyranias-<hash>.azurecr.io`), så ingen andre kan ta over navnet hvis registryet slettes en dag.
+      Den fulle adressen står under **Overview → Login server**.
+- [ ] **GitHub skal logge inn i Azure uten passord**, med *OpenID Connect* (OIDC). GitHub lager et kortlevd token for
+      hver kjøring. Azure stoler på det fordi vi har sagt hvilket repo og hvilken gren som er godkjent.
+  - [ ] I **Default Directory** (ikke LadyRanias-tenanten fra steg 8): **App registrations → New registration**, `github-ladyranias`
+  - [ ] **Certificates & secrets → Federated credentials → Add credential**: *GitHub Actions deploying Azure resources*,
+        organization `Insionz`, repository `LadyRanias`, entity **Branch**, branch `main`
+  - [ ] På registryet: **Access control (IAM) → Add role assignment → AcrPush** → `github-ladyranias`
+  - [ ] I GitHub-repoet: **Settings → Secrets and variables → Actions → Variables**:
+        `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` og `ACR_LOGIN_SERVER` (hele adressen).
+        Dette er id-er, ikke hemmeligheter. Ingen passord lagres noe sted.
+
+### Del 4: CI bygger og publiserer
+- [ ] **På hver PR:** jobb som kjører `docker build`, men ikke publiserer. Da oppdager vi med en gang om noen har ødelagt Dockerfile.
+- [ ] **På `main`, etter at testene er grønne:** logg inn med `azure/login` (OIDC), og bygg og push to tagger:
+  - `<ACR_LOGIN_SERVER>/ladyranias:<git-sha>`: fast, endres aldri. Det er denne vi deployer i steg 11.
+  - `<ACR_LOGIN_SERVER>/ladyranias:main`: flyttes hver gang, så det er lett å se hva som er nyest.
+- [ ] Jobben trenger `permissions: id-token: write` for å få OIDC-tokenet fra GitHub
+
+**Ferdig når**
+- [ ] `docker run` lokalt viser appen på `localhost:8080`
+- [ ] PR-en viser en grønn jobb for `docker build`
+- [ ] Etter merge ligger imaget i registryet under **Repositories → ladyranias**, med git-SHA som tag
+- [ ] Ingen passord eller nøkler i GitHub (bare id-er under *Variables*)
+
+**Det kan være lurt å slå opp:** «multi-stage build», «Docker layer caching», «.NET chiseled containers»,
+`$APP_UID`, «host.docker.internal», «GitHub Actions OIDC Azure», `azure/login`, `az acr login`, «federated credential».
+
+**Utsatt:** opprydding av gamle images (Basic har ingen automatisk opprydding), og sårbarhetsskanning av imaget.
 
 ---
 
