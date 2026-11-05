@@ -25,6 +25,8 @@ public sealed class ContactRateLimitTests
                 {
                     services.AddSingleton<IContactDatabase, InMemoryContactDatabase>();
                     services.AddSingleton<INotificationQueue, InMemoryNotificationQueue>();
+                    // Aldri ekte e-post fra testene, selv om ACS er satt opp i user secrets.
+                    services.AddSingleton<IEmailSender, LogEmailSender>();
                     services.AddTestAuth();
                 });
             });

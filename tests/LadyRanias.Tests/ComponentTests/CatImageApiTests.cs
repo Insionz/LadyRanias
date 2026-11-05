@@ -38,6 +38,10 @@ public sealed class CatImageApiTests
                     services.AddTestAuth();
 
                 }));
+
+        // Start appen nå, én gang. Ellers kan to tester som kjører samtidig starte hver sin app
+        // (med hver sin database i minnet) første gang de ber om en klient.
+        _ = _factory.Server;
     }
 
     [ClassCleanup]

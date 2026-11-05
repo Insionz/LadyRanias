@@ -1,4 +1,3 @@
-using Azure.Storage.Blobs;
 using LadyRanias.App.Components.CatImages.Api;
 using LadyRanias.App.Components.CatImages.Impl;
 using LadyRanias.App.Components.Cats.Api;
@@ -19,11 +18,6 @@ public static class CatImagesComponent
 
         // Cats kaller alle registrerte ICatDeletedListener når en katt slettes.
         builder.Services.AddSingleton<ICatDeletedListener, DeleteImagesWhenCatIsDeleted>();
-
-        var connectionString = builder.Configuration.GetConnectionString("Storage")
-            ?? throw new InvalidOperationException("ConnectionStrings:Storage mangler i konfigurasjonen");
-
-        builder.Services.AddSingleton(new BlobServiceClient(connectionString));
 
         return builder;
     }

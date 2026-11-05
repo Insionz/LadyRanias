@@ -3,6 +3,7 @@ using LadyRanias.App.Components.CatImages;
 using LadyRanias.App.Components.Cats;
 using LadyRanias.App.Components.Contact;
 using LadyRanias.App.Components.Litters;
+using LadyRanias.App.Components.Storage;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text.Json.Serialization;
 
@@ -20,15 +21,22 @@ builder.Services.AddOpenApi();
 // Appen står bak en proxy: Vite under utvikling, og Azure Container Apps i drift.
 // Proxyen forteller hvilken adresse brukeren egentlig gikk til (X-Forwarded-Host og -Proto).
 // Uten dette bygger appen tilbakeadressen til Entra med feil port eller http i stedet for https.
-// Som standard stoles det bare på proxyer på samme maskin (localhost). Azure må legges til i steg 11.
+// Som standard stoles det bare på proxyer på samme maskin (localhost).
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
         | ForwardedHeaders.XForwardedProto
         | ForwardedHeaders.XForwardedHost;
+
+    if (builder.Configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies"))
+    {
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
 });
 
 builder.UseAuthComponent();
+builder.UseStorage();
 builder.UseCatsComponent();
 builder.UseCatImagesComponent();
 builder.UseLittersComponent();
