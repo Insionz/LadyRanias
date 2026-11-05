@@ -1,4 +1,4 @@
-﻿using LadyRanias.App.Components.Cats.Api;
+using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -28,7 +28,10 @@ public sealed class CatApiTests
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
                 builder.ConfigureTestServices(services =>
-                    services.AddSingleton<ICatDatabase, InMemoryCatDatabase>()));
+                {
+                    services.AddSingleton<ICatDatabase, InMemoryCatDatabase>();
+                    services.AddTestAuth();
+                }));
     }
 
     [ClassCleanup]
@@ -40,7 +43,7 @@ public sealed class CatApiTests
     [TestInitialize]
     public void CreateClient()
     {
-        _httpClient = _factory.CreateClient();
+        _httpClient = _factory.CreateClient().AsAdmin();
     }
 
     [TestMethod]

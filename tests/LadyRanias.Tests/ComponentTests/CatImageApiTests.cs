@@ -35,6 +35,7 @@ public sealed class CatImageApiTests
                     services.AddSingleton<ICatDatabase, InMemoryCatDatabase>();
                     services.AddSingleton<ICatImageDatabase, InMemoryCatImageDatabase>();
                     services.AddSingleton<IImageStore, InMemoryImageStore>();
+                    services.AddTestAuth();
 
                 }));
     }
@@ -48,7 +49,7 @@ public sealed class CatImageApiTests
     [TestInitialize]
     public void CreateClient()
     {
-        _httpClient = _factory.CreateClient();
+        _httpClient = _factory.CreateClient().AsAdmin();
     }
 
     [TestMethod]
