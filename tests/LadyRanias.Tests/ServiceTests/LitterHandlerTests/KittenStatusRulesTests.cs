@@ -1,0 +1,34 @@
+using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Litters.Impl;
+
+namespace LadyRanias.Tests.ServiceTests.LitterHandlerTests;
+
+[TestClass]
+public sealed class KittenStatusRulesTests
+{
+    // Hele overgangstabellen fra README, rad for rad. 4 × 4 = 16 kombinasjoner.
+    [TestMethod]
+    [DataRow(KittenStatus.Available, KittenStatus.Available, false)]
+    [DataRow(KittenStatus.Available, KittenStatus.Reserved, true)]
+    [DataRow(KittenStatus.Available, KittenStatus.Sold, true)]
+    [DataRow(KittenStatus.Available, KittenStatus.Kept, true)]
+
+    [DataRow(KittenStatus.Reserved, KittenStatus.Available, true)]
+    [DataRow(KittenStatus.Reserved, KittenStatus.Reserved, false)]
+    [DataRow(KittenStatus.Reserved, KittenStatus.Sold, true)]
+    [DataRow(KittenStatus.Reserved, KittenStatus.Kept, false)]
+
+    [DataRow(KittenStatus.Sold, KittenStatus.Available, false)]
+    [DataRow(KittenStatus.Sold, KittenStatus.Reserved, false)]
+    [DataRow(KittenStatus.Sold, KittenStatus.Sold, false)]
+    [DataRow(KittenStatus.Sold, KittenStatus.Kept, false)]
+
+    [DataRow(KittenStatus.Kept, KittenStatus.Available, true)]
+    [DataRow(KittenStatus.Kept, KittenStatus.Reserved, false)]
+    [DataRow(KittenStatus.Kept, KittenStatus.Sold, false)]
+    [DataRow(KittenStatus.Kept, KittenStatus.Kept, false)]
+    public void CanChange_follows_the_table(KittenStatus from, KittenStatus to, bool expected)
+    {
+        Assert.AreEqual(expected, KittenStatusRules.CanChange(from, to));
+    }
+}

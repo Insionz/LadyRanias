@@ -188,6 +188,64 @@ public sealed class CatHandlerTests
         Assert.HasCount(0, _listener.DeletedCatIds);
     }
 
+    private static UpdateCatDto ValidUpdate() => new()
+    {
+        Name = "Kiara Nova",
+        Sex = SexEnum.Female,
+        BirthDate = new DateOnly(2026, 2, 15),
+        Description = "Ny beskrivelse",
+    };
+
+    [TestMethod]
+    public async Task Update_changes_all_fields_but_keeps_id_and_created_at()
+    {
+        var cat = _cats.First();
+
+        var updated = await _handler.UpdateAsync(cat.Id, ValidUpdate(), CancellationToken.None);
+
+        Assert.IsNotNull(updated);
+        Assert.AreEqual(cat.Id, updated.Id);
+        Assert.AreEqual(cat.CreatedAt, updated.CreatedAt);
+        Assert.AreEqual("Kiara Nova", updated.Name);
+        Assert.AreEqual(new DateOnly(2026, 2, 15), updated.BirthDate);
+        Assert.AreEqual("Ny beskrivelse", updated.Description);
+
+        // Og den er faktisk lagret, ikke bare returnert.
+        var fetched = await _handler.GetAsync(cat.Id, CancellationToken.None);
+        Assert.AreEqual(updated, fetched);
+    }
+
+    [TestMethod]
+    public async Task Update_with_future_birthdate_is_rejected_and_nothing_is_saved()
+    {
+        var cat = _cats.First();
+        var update = ValidUpdate() with { BirthDate = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(1) };
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(cat.Id, update, CancellationToken.None));
+
+        var fetched = await _handler.GetAsync(cat.Id, CancellationToken.None);
+        Assert.IsNotNull(fetched);
+        Assert.AreEqual(cat.Name, fetched.Name);
+    }
+
+    [TestMethod]
+    public async Task Update_with_unknown_sex_is_rejected()
+    {
+        var update = ValidUpdate() with { Sex = SexEnum.Unknown };
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(_cats.First().Id, update, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Update_unknown_id_returns_null()
+    {
+        var result = await _handler.UpdateAsync(Guid.NewGuid(), ValidUpdate(), CancellationToken.None);
+
+        Assert.IsNull(result);
+    }
+
     /// <summary>Husker hvilke katter den har fått beskjed om, så testen kan sjekke at CatHandler sier fra.</summary>
     private sealed class RecordingListener : ICatDeletedListener
     {

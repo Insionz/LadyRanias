@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Cats.Api;
 
@@ -21,9 +21,13 @@ public sealed record CreateCatDto
     [Required] public required string Description { get; set; }
 }
 
-public sealed record ChangeNameDto
+/// <summary>Full oppdatering: alle feltene sendes, også de som ikke er endret.</summary>
+public sealed record UpdateCatDto
 {
-    public required string Name { get; set; }
+    [Required] public required string Name { get; set; }
+    public required DateOnly BirthDate { get; set; }
+    public required SexEnum Sex { get; set; }
+    [Required] public required string Description { get; set; }
 }
 
 public enum SexEnum

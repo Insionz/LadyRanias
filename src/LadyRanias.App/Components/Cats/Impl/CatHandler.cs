@@ -43,7 +43,7 @@ internal sealed class CatHandler(
         return ToDto(cat);
     }
 
-    public async Task<CatDto?> SaveNameAsync(Guid id, ChangeNameDto changeNameDto, CancellationToken cancellationToken)
+    public async Task<CatDto?> UpdateAsync(Guid id, UpdateCatDto update, CancellationToken cancellationToken)
     {
         var cat = await database.GetAsync(id, cancellationToken);
 
@@ -52,13 +52,20 @@ internal sealed class CatHandler(
             return null;
         }
 
-        var changedCat = cat with
+        // Samme regler som ved opprettelse.
+        Validate(update.Sex, update.BirthDate, timeProvider.GetUtcNow());
+
+        // «with» lager en kopi med de nye verdiene. Id og CreatedAt følger med uendret.
+        var updatedCat = cat with
         {
-            Name = changeNameDto.Name,
+            Name = update.Name,
+            Sex = update.Sex,
+            BirthDate = update.BirthDate,
+            Description = update.Description,
         };
 
-        await database.SaveAsync(changedCat, cancellationToken);
-        return ToDto(changedCat);
+        await database.SaveAsync(updatedCat, cancellationToken);
+        return ToDto(updatedCat);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)

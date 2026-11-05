@@ -44,3 +44,10 @@ export type Litter = {
   createdAt: string
   kittens: Kitten[]
 }
+
+/** Svar fra api/auth/me */
+export type Me = {
+  name: string | null
+  email: string | null
+  isAdmin: boolean
+}

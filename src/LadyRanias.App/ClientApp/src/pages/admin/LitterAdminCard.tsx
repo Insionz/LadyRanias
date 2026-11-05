@@ -1,0 +1,171 @@
+import { useState, type FormEvent } from 'react'
+import { Alert, Badge, Button, Card, Group, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { send } from '../../api/api'
+import ConfirmButton from '../../components/ConfirmButton'
+import type { Cat, Kitten, KittenStatus, Litter, Sex } from '../../types/types'
+import { formatDate, kittenStatusBadge, sexLabel } from '../../utils/format'
+import { nextKittenStatuses } from '../../utils/kittenRules'
+
+type Props = {
+  litter: Litter
+  cats: Map<string, Cat>
+  onChanged: () => void
+}
+
+const today = new Date().toISOString().slice(0, 10)
+
+export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [birthDate, setBirthDate] = useState(today)
+  const [kittenName, setKittenName] = useState('')
+  const [kittenSex, setKittenSex] = useState<Sex | null>(null)
+
+  /** Kjører en handling mot API-et, viser feilen hvis den feiler, og laster lista på nytt hvis den lykkes. */
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      onChanged()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Noe gikk galt')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function markBorn(event: FormEvent) {
+    event.preventDefault()
+    void run(() => send('POST', `/api/admin/litters/${litter.id}/born`, { birthDate }))
+  }
+
+  function addKitten(event: FormEvent) {
+    event.preventDefault()
+    void run(async () => {
+      await send('POST', `/api/admin/litters/${litter.id}/kittens`, { name: kittenName, sex: kittenSex })
+      setKittenName('')
+      setKittenSex(null)
+    })
+  }
+
+  function changeStatus(kitten: Kitten, status: KittenStatus) {
+    void run(() => send('PUT', `/api/admin/litters/${litter.id}/kittens/${kitten.id}/status`, { status }))
+  }
+
+  const mother = cats.get(litter.motherId)?.name ?? 'ukjent'
+  const father = cats.get(litter.fatherId)?.name ?? 'ukjent'
+
+  return (
+    <Card withBorder radius="md" padding="lg">
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start">
+          <div>
+            <Group gap="xs">
+              <Title order={3} fz={32}>
+                {litter.name}
+              </Title>
+              <Badge variant="light" color={litter.status === 'Born' ? 'green' : 'blue'}>
+                {litter.status === 'Born' ? 'Født' : 'Planlagt'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Mor: {mother} · Far: {father}
+              {litter.birthDate && ` · Født ${formatDate(litter.birthDate)}`}
+            </Text>
+          </div>
+          <ConfirmButton
+            label="Slett kull"
+            question={`Slette ${litter.name}? Kattungene slettes også.`}
+            onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}`))}
+          />
+        </Group>
+
+        {error && <Alert color="red">{error}</Alert>}
+
+        {litter.status === 'Planned' && (
+          <form onSubmit={markBorn}>
+            <Group align="flex-end">
+              <TextInput
+                label="Fødselsdato"
+                type="date"
+                required
+                max={today}
+                value={birthDate}
+                onChange={e => setBirthDate(e.currentTarget.value)}
+              />
+              <Button type="submit" loading={busy}>
+                Marker som født
+              </Button>
+            </Group>
+          </form>
+        )}
+
+        {litter.status === 'Born' && (
+          <>
+            {litter.kittens.length > 0 && (
+              <Table.ScrollContainer minWidth={480}>
+                <Table verticalSpacing="xs">
+                  <Table.Tbody>
+                    {litter.kittens.map(kitten => {
+                      const badge = kittenStatusBadge(kitten.status)
+                      const options = [kitten.status, ...nextKittenStatuses(kitten.status)]
+                      return (
+                        <Table.Tr key={kitten.id}>
+                          <Table.Td fw={600}>{kitten.name}</Table.Td>
+                          <Table.Td>{sexLabel(kitten.sex)}</Table.Td>
+                          <Table.Td w={180}>
+                            {/* Bare lovlige overganger vises. Er den solgt, er det ingenting å velge. */}
+                            <Select
+                              size="xs"
+                              aria-label={`Status for ${kitten.name}`}
+                              value={kitten.status}
+                              disabled={busy || options.length === 1}
+                              allowDeselect={false}
+                              data={options.map(s => ({ value: s, label: kittenStatusBadge(s).label }))}
+                              onChange={value => value && value !== kitten.status && changeStatus(kitten, value as KittenStatus)}
+                              leftSection={<Badge size="xs" circle color={badge.color} />}
+                            />
+                          </Table.Td>
+                          <Table.Td>
+                            <Group justify="flex-end">
+                              <ConfirmButton
+                                label="Slett"
+                                question={`Slette ${kitten.name}?`}
+                                onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}/kittens/${kitten.id}`))}
+                              />
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      )
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            )}
+
+            <form onSubmit={addKitten}>
+              <Group align="flex-end" wrap="wrap">
+                <TextInput label="Ny kattunge" placeholder="Navn" required value={kittenName} onChange={e => setKittenName(e.currentTarget.value)} />
+                <Select
+                  label="Kjønn"
+                  required
+                  w={140}
+                  value={kittenSex}
+                  onChange={value => setKittenSex(value as Sex | null)}
+                  data={[
+                    { value: 'Female', label: 'Hunnkatt' },
+                    { value: 'Male', label: 'Hannkatt' },
+                  ]}
+                />
+                <Button type="submit" loading={busy} disabled={!kittenSex}>
+                  Legg til
+                </Button>
+              </Group>
+            </form>
+          </>
+        )}
+      </Stack>
+    </Card>
+  )
+}

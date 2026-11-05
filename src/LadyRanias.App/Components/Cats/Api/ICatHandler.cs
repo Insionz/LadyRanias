@@ -1,4 +1,4 @@
-﻿namespace LadyRanias.App.Components.Cats.Api;
+namespace LadyRanias.App.Components.Cats.Api;
 
 public interface ICatHandler
 {
@@ -6,5 +6,6 @@ public interface ICatHandler
     Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<CatDto> CreateAsync(CreateCatDto entity, CancellationToken cancellationToken);
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
-    Task<CatDto?> SaveNameAsync(Guid id, ChangeNameDto name, CancellationToken cancellationToken);
+    /// <summary>null hvis katten ikke finnes. ValidationException ved ugyldige verdier.</summary>
+    Task<CatDto?> UpdateAsync(Guid id, UpdateCatDto update, CancellationToken cancellationToken);
 }
