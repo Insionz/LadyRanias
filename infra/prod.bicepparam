@@ -13,8 +13,8 @@ param canonicalHost = 'www.ladyranias.no'
 // Fylles inn etter at domenene er koblet til første gang (README steg 12, del 3).
 // Uten dette ville neste deploy fjernet domenene fra appen.
 param customDomains = [
-  // { name: 'www.ladyranias.no', certificateId: '<id til sertifikatet>' }
-  // { name: 'ladyranias.no', certificateId: '<id til sertifikatet>' }
+  { name: 'ladyranias.no', certificateId: '/subscriptions/e60aafc2-ce89-4f04-bf41-36934653af45/resourceGroups/rg-ladyranias/providers/Microsoft.App/managedEnvironments/cae-ladyranias/managedCertificates/mc-cae-ladyranias-ladyranias-no-7064' }
+  { name: 'www.ladyranias.no', certificateId: '/subscriptions/e60aafc2-ce89-4f04-bf41-36934653af45/resourceGroups/rg-ladyranias/providers/Microsoft.App/managedEnvironments/cae-ladyranias/managedCertificates/mc-cae-ladyranias-www-ladyranias-n-5620' }
 ]
 
 param acrName = 'crladyranias'
