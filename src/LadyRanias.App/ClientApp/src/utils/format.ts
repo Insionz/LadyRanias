@@ -1,4 +1,4 @@
-import type { KittenStatus, Sex } from '../types/types'
+import type { ContactStatus, KittenStatus, Sex } from '../types/types'
 
 export function sexLabel(sex: Sex) {
   switch (sex) {
@@ -60,4 +60,22 @@ const monthFormat = new Intl.DateTimeFormat('nb-NO', { month: 'long', year: 'num
 /** «desember 2026». Et planlagt kull har sjelden en nøyaktig dato. */
 export function formatMonth(isoDate: string) {
   return monthFormat.format(parseDate(isoDate))
+}
+
+const dateTimeFormat = new Intl.DateTimeFormat('nb-NO', { dateStyle: 'medium', timeStyle: 'short' })
+
+/** «5. nov. 2026, 14:55». For tidspunkter (createdAt), ikke datoer uten klokkeslett. */
+export function formatDateTime(isoDateTime: string) {
+  return dateTimeFormat.format(new Date(isoDateTime))
+}
+
+export function contactStatusBadge(status: ContactStatus): { label: string; color: string } {
+  switch (status) {
+    case 'New':
+      return { label: 'Ny', color: 'red' }
+    case 'Read':
+      return { label: 'Lest', color: 'yellow' }
+    case 'Answered':
+      return { label: 'Besvart', color: 'green' }
+  }
 }

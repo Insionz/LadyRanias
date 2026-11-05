@@ -128,3 +128,27 @@ GET {{host}}/api/public/litters
 
 ### Slett kullet (sletter også kattungene)
 DELETE {{host}}/api/admin/litters/{{createLitter.response.body.$.id}}
+
+### ---------- Kontaktskjema ----------
+
+### Send kontaktmelding (skal gi 202)
+POST {{host}}/api/public/contact
+Content-Type: application/json
+
+{
+  "name": "Kari",
+  "email": "kari@example.com",
+  "phone": "900 00 000",
+  "subject": "Kull våren 2027",
+  "message": "Har dere kattunger til våren?"
+}
+
+### Ugyldig e-post og for kort melding (skal gi 400 med forklaring)
+POST {{host}}/api/public/contact
+Content-Type: application/json
+
+{
+  "name": "Kari",
+  "email": "ikke-en-epost",
+  "message": "Hei"
+}

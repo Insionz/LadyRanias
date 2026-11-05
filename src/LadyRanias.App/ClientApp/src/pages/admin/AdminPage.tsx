@@ -3,6 +3,7 @@ import { login, useAuth } from '../../api/auth'
 import { ErrorMessage, Loading } from '../../components/Status'
 import AdminCats from './AdminCats'
 import AdminLitters from './AdminLitters'
+import AdminMessages from './AdminMessages'
 
 /**
  * Utlogging er et vanlig skjema som sender POST. Nettleseren følger da omdirigeringen til Entra og tilbake,
@@ -70,12 +71,16 @@ export default function AdminPage() {
             <Tabs.List>
               <Tabs.Tab value="cats">Katter</Tabs.Tab>
               <Tabs.Tab value="litters">Kull</Tabs.Tab>
+              <Tabs.Tab value="messages">Meldinger</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="cats" pt="md">
               <AdminCats />
             </Tabs.Panel>
             <Tabs.Panel value="litters" pt="md">
               <AdminLitters />
+            </Tabs.Panel>
+            <Tabs.Panel value="messages" pt="md">
+              <AdminMessages />
             </Tabs.Panel>
           </Tabs>
         </Stack>

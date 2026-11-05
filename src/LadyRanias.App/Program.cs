@@ -1,6 +1,7 @@
 using LadyRanias.App.Components.Auth;
 using LadyRanias.App.Components.CatImages;
 using LadyRanias.App.Components.Cats;
+using LadyRanias.App.Components.Contact;
 using LadyRanias.App.Components.Litters;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text.Json.Serialization;
@@ -31,6 +32,7 @@ builder.UseAuthComponent();
 builder.UseCatsComponent();
 builder.UseCatImagesComponent();
 builder.UseLittersComponent();
+builder.UseContactComponent();
 
 var app = builder.Build();
 
@@ -48,6 +50,7 @@ app.UseStaticFiles();      // serverer filene i wwwroot
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();      // etter innlogging, før controllerne ([EnableRateLimiting] på kontaktskjemaet)
 app.MapControllers();
 app.MapFallbackToFile("{*path:regex(^(?!api/).*$)}", "index.html");
 
