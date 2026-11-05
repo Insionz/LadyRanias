@@ -499,8 +499,11 @@ Det er akkurat det vi vil i Azure, men ikke her.
 `ConnectionStrings:Storage`. Det er slik Azure gir appen innstillinger i steg 11.
 
 ### Del 3: Azure Container Registry og innlogging fra GitHub uten passord
-- [ ] Opprett **Container registry** i `rg-ladyranias`: navn for eksempel `crladyranias` (må være unikt i hele Azure,
-      bare små bokstaver og tall), plan **Basic**, region Norway East eller West Europe
+- [ ] Opprett **Container registry** i `rg-ladyranias`: navn for eksempel `crladyranias` (bare små bokstaver og tall),
+      plan **Basic**, region Norway East eller West Europe
+- [ ] **Domain name label scope: Tenant Reuse.** Azure legger til en fast hash i adressen
+      (`crladyranias-<hash>.azurecr.io`), så ingen andre kan ta over navnet hvis registryet slettes en dag.
+      Den fulle adressen står under **Overview → Login server**.
 - [ ] **GitHub skal logge inn i Azure uten passord**, med *OpenID Connect* (OIDC). GitHub lager et kortlevd token for
       hver kjøring. Azure stoler på det fordi vi har sagt hvilket repo og hvilken gren som er godkjent.
   - [ ] I **Default Directory** (ikke LadyRanias-tenanten fra steg 8): **App registrations → New registration**, `github-ladyranias`
@@ -508,14 +511,14 @@ Det er akkurat det vi vil i Azure, men ikke her.
         organization `Insionz`, repository `LadyRanias`, entity **Branch**, branch `main`
   - [ ] På registryet: **Access control (IAM) → Add role assignment → AcrPush** → `github-ladyranias`
   - [ ] I GitHub-repoet: **Settings → Secrets and variables → Actions → Variables**:
-        `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME`.
+        `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` og `ACR_LOGIN_SERVER` (hele adressen).
         Dette er id-er, ikke hemmeligheter. Ingen passord lagres noe sted.
 
 ### Del 4: CI bygger og publiserer
 - [ ] **På hver PR:** jobb som kjører `docker build`, men ikke publiserer. Da oppdager vi med en gang om noen har ødelagt Dockerfile.
 - [ ] **På `main`, etter at testene er grønne:** logg inn med `azure/login` (OIDC), og bygg og push to tagger:
-  - `crladyranias.azurecr.io/ladyranias:<git-sha>`: fast, endres aldri. Det er denne vi deployer i steg 11.
-  - `crladyranias.azurecr.io/ladyranias:main`: flyttes hver gang, så det er lett å se hva som er nyest.
+  - `<ACR_LOGIN_SERVER>/ladyranias:<git-sha>`: fast, endres aldri. Det er denne vi deployer i steg 11.
+  - `<ACR_LOGIN_SERVER>/ladyranias:main`: flyttes hver gang, så det er lett å se hva som er nyest.
 - [ ] Jobben trenger `permissions: id-token: write` for å få OIDC-tokenet fra GitHub
 
 **Ferdig når**

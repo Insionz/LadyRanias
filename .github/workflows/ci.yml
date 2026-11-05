@@ -1,7 +1,4 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: CI
 
 on:
   push:
@@ -10,6 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
+  # .NET: bygg og kjør alle testene (mot Azurite)
   build:
     runs-on: ubuntu-latest
 
@@ -37,3 +35,62 @@ jobs:
 
     - name: Test
       run: dotnet test --no-build --verbosity normal
+
+  # React: lint og bygg. Kjører samtidig med .NET-jobben.
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/LadyRanias.App/ClientApp
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: npm
+        cache-dependency-path: src/LadyRanias.App/ClientApp/package-lock.json
+
+    - name: Install
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Build
+      run: npm run build
+
+  # Container-image: bygges på hver PR. På main publiseres det også til Azure Container Registry.
+  image:
+    runs-on: ubuntu-latest
+    needs: [build, frontend]   # bare hvis testene og frontend-bygget er grønne
+
+    permissions:
+      id-token: write   # lar jobben be GitHub om et OIDC-token til Azure-innloggingen
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Bygg image
+      run: docker build -t ladyranias:${{ github.sha }} .
+
+    - name: Logg inn i Azure (OIDC, uten passord)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ vars.AZURE_CLIENT_ID }}
+        tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Publiser til Azure Container Registry
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        az acr login --name ${{ vars.ACR_NAME }}
+        docker tag ladyranias:${{ github.sha }} ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ github.sha }}
+        docker tag ladyranias:${{ github.sha }} ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:main
+        docker push ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ github.sha }}
+        docker push ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:main
