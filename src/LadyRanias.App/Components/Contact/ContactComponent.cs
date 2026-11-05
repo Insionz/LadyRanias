@@ -1,9 +1,6 @@
-using Azure.Data.Tables;
 using Azure.Communication.Email;
-using Azure.Storage.Queues;
 using LadyRanias.App.Components.Contact.Api;
 using LadyRanias.App.Components.Contact.Impl;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Threading.RateLimiting;
 
@@ -26,13 +23,7 @@ public static class ContactComponent
         // Bakgrunnsjobben som sender e-postvarsler. Starter og stopper sammen med appen.
         builder.Services.AddHostedService<ContactNotificationWorker>();
 
-        var connectionString = builder.Configuration.GetConnectionString("Storage")
-            ?? throw new InvalidOperationException("ConnectionStrings:Storage mangler i konfigurasjonen");
-
-        // Cats registrerer også en TableServiceClient. TryAdd gjør at det bare blir én.
         builder.Services.TryAddSingleton(TimeProvider.System);
-        builder.Services.TryAddSingleton(new TableServiceClient(connectionString));
-        builder.Services.TryAddSingleton(new QueueServiceClient(connectionString));
 
         // Rate limiting: maks N meldinger per time per IP-adresse. Standard er 5.
         // Kan overstyres i konfigurasjonen (testene gjør det, så de ikke går tom for kvote).

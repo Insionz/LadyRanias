@@ -35,8 +35,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 7 | Komponent **Litters** (kull og kattunger): planlagt og født, kattunger ledig, reservert, solgt og beholdes, side for kull | ✅ |
 | 8 | Admin: innlogging med Microsoft Entra External ID, rollen `Admin`, `api/admin` beskyttet, adminsider | ✅ |
 | 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | ✅ |
-| 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | Pågår |
-| 11 | Deploy til **test** i Azure Container Apps, automatisk fra `main` | |
+| 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | ✅ |
+| 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | Pågår |
 | 12 | Deploy til **prod** etter godkjenning, eget domene fra one.com, HTTPS | |
 | 13 | Observerbarhet: logger, helseprober, varsler | |
 
@@ -52,6 +52,13 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 
 **Lagring**
 - [ ] ETag: oppdateringer avvises hvis raden er endret av noen andre i mellomtiden, og API-et svarer 409 Conflict
+
+**Tester**
+- [ ] Komponenttestene (`*ApiTests`) skal ikke trenge Azurite. En felles `UseInMemoryStorage()` i testprosjektet bytter
+      ut alle databaser, bildelageret og køen med versjonene i minnet. I dag trenger de Azurite ved et uhell, blant annet
+      fordi bakgrunnsjobben for e-post starter i alle testene og oppretter køen.
+- [ ] Integrasjonstestene starter Azurite selv med **Testcontainers** (Docker), så ingen trenger å huske å starte den,
+      og `docker run`-steget i CI kan fjernes
 
 ## Valg underveis
 
@@ -467,7 +474,8 @@ SkiaSharp fungerer, fordi vi bruker `NativeAssets.Linux.NoDependencies` (valgt i
 - [ ] **Steg 1 (Node):** kopier først bare `package.json` og `package-lock.json`, kjør `npm ci`, og kopier så resten.
       Da kan Docker gjenbruke `npm ci` fra forrige bygg (*layer caching*) når bare koden er endret.
 - [ ] **Steg 2 (.NET SDK):** samme triks: kopier `Directory.Build.props` og `.csproj` først, kjør `dotnet restore`, så resten.
-      Hent `wwwroot` fra steg 1, og kjør `dotnet publish -c Release -o /app -p:SkipClientBuild=true`.
+      Hent `wwwroot` fra steg 1, og kjør `dotnet publish -c Release -o /app -r linux-x64 --self-contained false -p:SkipClientBuild=true`.
+      **`-r linux-x64`** (også på `restore`) tar bare med native filer for Linux. Uten den ble imaget nesten tre ganger så stort.
 - [ ] **csproj:** publish-målet fra steg 6 kjører `npm ci` og `npm run build`. Det finnes ikke Node i SDK-imaget, og
       React er uansett bygget i steg 1. Legg til `Condition="'$(SkipClientBuild)' != 'true'"` på de to `Exec`-linjene.
 - [ ] **Steg 3 (runtime):** `COPY --from=build /app .`, og `ENTRYPOINT ["dotnet", "LadyRanias.App.dll"]`.
@@ -510,6 +518,8 @@ Det er akkurat det vi vil i Azure, men ikke her.
   - [ ] **Certificates & secrets → Federated credentials → Add credential**: *GitHub Actions deploying Azure resources*,
         organization `Insionz`, repository `LadyRanias`, entity **Branch**, branch `main`
   - [ ] På registryet: **Access control (IAM) → Add role assignment → AcrPush** → `github-ladyranias`
+  - [ ] Og rollen **Reader** på registryet, også til `github-ladyranias`. `az acr login --name` slår opp den fulle
+        adressen (med hash) via Azure, og AcrPush alene gir ikke lov til å se registryet som ressurs.
   - [ ] I GitHub-repoet: **Settings → Secrets and variables → Actions → Variables**:
         `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` og `ACR_LOGIN_SERVER` (hele adressen).
         Dette er id-er, ikke hemmeligheter. Ingen passord lagres noe sted.
@@ -531,6 +541,146 @@ Det er akkurat det vi vil i Azure, men ikke her.
 `$APP_UID`, «host.docker.internal», «GitHub Actions OIDC Azure», `azure/login`, `az acr login`, «federated credential».
 
 **Utsatt:** opprydding av gamle images (Basic har ingen automatisk opprydding), og sårbarhetsskanning av imaget.
+
+---
+
+## Steg 11: Deploy til test i Azure Container Apps
+
+**Mål:** Appen kjører på nettet, på en adresse som `https://ca-ladyranias-test.<noe>.norwayeast.azurecontainerapps.io`.
+Hver merge til `main` deployer den nye versjonen automatisk. Ingen passord til Storage eller registry finnes noe sted.
+
+### Slik henger det sammen
+
+```
+GitHub Actions ──push──► Container Registry ◄──henter image── Container App «ca-ladyranias-test»
+     │                                          (AcrPull)              │  identitet: id-ladyranias-test
+     └── az containerapp update --image …:<sha> ──────────────────────►│
+                                                                       ├──► Storage (Table, Blob, Queue)
+Besøkende ──HTTPS──► Azure-proxy (TLS) ──HTTP──► appen på port 8080     ├──► Communication Services (e-post)
+                                                                       └──► Entra (innlogging)
+```
+
+**Nye begreper:**
+- **Container Apps-miljø** (`cae-ladyranias`): et felles «nabolag» for container-apper, med nettverk og logging.
+  Test og prod kan dele samme miljø.
+- **Managed identity** (`id-ladyranias-test`): en identitet Azure gir appen. Appen logger inn i Storage og registryet *som seg
+  selv*, uten passord eller nøkler. Det er samme idé som OIDC for GitHub i steg 10, bare for appen.
+- **Secrets på Container App-en:** det som *må* være hemmelig (Entra client secret, ACS-tilkoblingen), lagres kryptert
+  på appen og gis til den som miljøvariabler. Aldri i imaget og aldri i git.
+- **Skalering til null:** test kjører med `min-replicas 0`. Er det ingen besøkende, slås appen av og koster nesten ingenting.
+  Første besøk etter en pause tar noen sekunder (*cold start*). Bakgrunnsjobben for e-post kjører bare mens appen er på,
+  så et varsel kan bli liggende i køen til neste besøk. Det er greit i test. Prod får `min-replicas 1` i steg 12.
+
+**Hva koster det?** Container Apps har en gratis kvote per måned som en liten app med null i minimum holder seg godt
+innenfor. Storage koster noen kroner. Log Analytics er gratis opp til 5 GB logger i måneden. Det som faktisk koster,
+er registryet (Basic, ca. 50 kr/mnd) fra steg 10.
+
+### Del 1: Kode
+- [ ] **Storage med managed identity.** I dag lager hver komponent sin egen klient fra en tilkoblingsstreng. Samle det i
+      én `UseStorage()` som brukes av alle komponentene:
+  - finnes `ConnectionStrings:Storage` (lokalt med Azurite, i tester og i CI): bruk den, som i dag
+  - ellers `Storage:AccountName`: lag klientene med adresser (`https://<konto>.table.core.windows.net` osv.) og
+    `DefaultAzureCredential`, som finner appens managed identity automatisk
+  - pakken `Azure.Identity`
+- [ ] **Forwarded headers i Azure.** I steg 8 stolte appen bare på proxyer på samme maskin (Vite). Azure-proxyen har en
+      annen adresse. Når `ForwardedHeaders:TrustAllProxies` er `true`, tøm lista over kjente proxyer og nettverk, så
+      `X-Forwarded-Proto: https` og den ekte IP-adressen blir brukt. Det er trygt i Container Apps, fordi appen bare kan
+      nås via Azure-proxyen. Uten dette tror appen at den kjører på `http`, og Entra avviser innloggingen.
+
+### Del 2: Infrastruktur som kode med Bicep
+Alt som skal finnes i Azure, beskrives i **`infra/main.bicep`**. Verdiene for test ligger i **`infra/test.bicepparam`**.
+Bicep beskriver hvordan ting *skal være*. Kjører du den på nytt, endres bare det som er annerledes, og prod (steg 12)
+blir samme fil med en annen parameterfil.
+
+`main.bicep` lager:
+
+| Ressurs | Navn | Felles eller per miljø |
+|---|---|---|
+| Log Analytics | `log-ladyranias` | Felles |
+| Container Apps-miljø | `cae-ladyranias` | Felles |
+| Storage-konto, uten nøkler | `stlrtest…` (med hash, må være unikt) | Per miljø |
+| Managed identity | `id-ladyranias-test` | Per miljø |
+| Roller for identiteten | AcrPull på registryet, Table/Blob/Queue Data Contributor på storage | Per miljø |
+| Container App | `ca-ladyranias-test` | Per miljø |
+| Rolle for GitHub | Contributor på Container App-en | Per miljø |
+
+**Forberedelser**
+- [ ] Installer Azure CLI: `winget install Microsoft.AzureCLI`, og åpne en ny terminal. `az bicep install` henter Bicep.
+- [ ] `az login`, og sjekk med `az account show` at riktig abonnement er valgt
+- [ ] Fyll inn verdiene i `infra/test.bicepparam`. Object id til `github-ladyranias` finner du med
+      `az ad sp show --id <AZURE_CLIENT_ID> --query id -o tsv`
+- [ ] Anbefalt: utvidelsen **Bicep** i VS Code eller Visual Studio, som gir hjelp mens du skriver og viser feil
+
+**Deploy** (PowerShell, fra roten av repoet):
+
+```powershell
+# Hemmelighetene settes bare i denne terminalen. De lagres ikke i noen fil, og -MaskInput viser dem ikke.
+$env:ENTRA_CLIENT_SECRET     = Read-Host "Entra client secret" -MaskInput
+$env:EMAIL_CONNECTION_STRING = Read-Host "ACS connection string" -MaskInput
+$env:EMAIL_NOTIFY_ADDRESS    = Read-Host "Adresse for e-postvarsler"
+
+# Se hva som vil skje, uten å endre noe
+az deployment group what-if -g rg-ladyranias -f infra/main.bicep -p infra/test.bicepparam
+
+# Gjør det
+az deployment group create -g rg-ladyranias -f infra/main.bicep -p infra/test.bicepparam
+```
+
+`what-if` er en av de store fordelene med IaC: du ser nøyaktig hva som blir laget, endret eller slettet, før det skjer.
+
+Til slutt skriver deployen ut `url`, adressen til appen.
+
+**Første gang** kan appen bruke et minutt eller to på å starte, fordi rollen som lar den hente imaget, må spre seg i Azure.
+Står revisjonen som feilet under **Container App → Revisions and replicas**, kjør `az deployment group create` én gang til.
+
+**Når CI har deployet en ny versjon** (del 4), peker appen på en commit-SHA. Kjører du Bicep på nytt, settes imaget
+tilbake til `main`-taggen. Det er det samme imaget hvis ingenting er merget siden, men vær klar over det.
+
+**Hvorfor `max-replicas 1`?** Grensen på fem kontaktmeldinger i timen og bakgrunnsjobben ligger i minnet til én instans.
+Med to instanser ville hver hatt sin egen grense. For denne appen er én instans nok.
+
+**Hvorfor `Production` også i test?** Test skal oppføre seg som prod. Mangler en innstilling, stopper appen ved oppstart
+(steg 8 og 9), og det er bedre å oppdage i test enn i prod.
+
+### Del 3: Innlogging på test-adressen
+- [ ] I **LadyRanias-tenanten** → app-registreringen **LadyRanias** → **Authentication**: legg til
+  - `https://<fqdn>/api/auth/signin-oidc`
+  - `https://<fqdn>/api/auth/signout-callback-oidc`
+- [ ] Logg inn på `https://<fqdn>/admin`. Brukeren din i tenanten er den samme som lokalt, så du har allerede rollen.
+
+### Del 4: CI deployer automatisk
+- [ ] Rollen **Contributor** på Container App-en for `github-ladyranias` er allerede laget av Bicep (`githubDeploy`).
+      Den gjelder bare denne ene appen, ikke ressursgruppen eller abonnementet.
+- [ ] GitHub-variabler: `RESOURCE_GROUP` = `rg-ladyranias`, `CONTAINER_APP_TEST` = `ca-ladyranias-test`
+- [ ] Nytt steg i `image`-jobben, etter publisering, bare på `main`:
+
+```yaml
+    - name: Deploy til test
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        az config set extension.use_dynamic_install=yes_without_prompt
+        az containerapp update \
+          --name ${{ vars.CONTAINER_APP_TEST }} \
+          --resource-group ${{ vars.RESOURCE_GROUP }} \
+          --image ${{ vars.ACR_LOGIN_SERVER }}/ladyranias:${{ github.sha }}
+```
+
+Vi deployer **SHA-taggen**, ikke `main`. Da vet vi nøyaktig hvilken commit som kjører, og en ny revisjon lages hver gang.
+Container Apps beholder de gamle revisjonene, så det er lett å gå tilbake.
+
+**Ferdig når**
+- [ ] Forsiden vises på `https://<fqdn>`, med hengelås i nettleseren
+- [ ] Du kan logge inn på `/admin`, legge inn en katt med bilde og se den på `/katter`
+- [ ] Kontaktskjemaet gir e-postvarsel (husk at appen kanskje må vekkes først, se «Skalering til null»)
+- [ ] En merge til `main` gir en ny revisjon automatisk (**Container App → Revisions and replicas**)
+- [ ] Ingen nøkler til Storage eller registry finnes noe sted
+
+**Det kan være lurt å slå opp:** «Bicep fundamentals», `existing`, `bicepparam`, `readEnvironmentVariable`,
+«az deployment group what-if», «Azure Container Apps managed identity», `DefaultAzureCredential`,
+«Storage Table Data Contributor», «secretRef», «scale to zero», «Container Apps revisions»,
+`ForwardedHeadersOptions.KnownIPNetworks`.
+
+**Utsatt:** deploy av Bicep fra CI (i dag kjøres den for hånd), eget domene og helseprober (steg 12 og 13).
 
 ---
 

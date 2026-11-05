@@ -34,9 +34,15 @@ public sealed class ContactApiTests
                 {
                     services.AddSingleton<IContactDatabase, InMemoryContactDatabase>();
                     services.AddSingleton<INotificationQueue, InMemoryNotificationQueue>();
+                    // Aldri ekte e-post fra testene, selv om ACS er satt opp i user secrets.
+                    services.AddSingleton<IEmailSender, LogEmailSender>();
                     services.AddTestAuth();
                 });
             });
+
+        // Start appen nå, én gang. Ellers kan to tester som kjører samtidig starte hver sin app
+        // (med hver sin database i minnet) første gang de ber om en klient.
+        _ = _factory.Server;
     }
 
     [ClassCleanup]
@@ -109,17 +115,18 @@ public sealed class ContactApiTests
     public async Task Sent_message_is_listed_for_admin_and_can_be_marked_answered_and_deleted()
     {
         var name = $"Kari {Guid.NewGuid():N}"; // unikt, siden testene deler database
-        await _httpClient.PostAsJsonAsync("api/public/contact", new
+        var postResponse = await _httpClient.PostAsJsonAsync("api/public/contact", new
         {
             name,
             email = "kari@example.com",
             message = "Har dere kattunger til våren?",
         });
+        Assert.AreEqual(HttpStatusCode.Accepted, postResponse.StatusCode, await postResponse.Content.ReadAsStringAsync());
 
         var admin = _factory.CreateClient().AsAdmin();
         var messages = await admin.GetFromJsonAsync<List<ContactMessageDto>>("api/admin/contact", Json);
         var mine = messages?.SingleOrDefault(m => m.Name == name);
-        Assert.IsNotNull(mine);
+        Assert.IsNotNull(mine, $"Fant ikke meldingen blant {messages?.Count ?? 0} meldinger");
         Assert.AreEqual(ContactStatusEnum.New, mine.Status);
 
         var statusResponse = await admin.PutAsJsonAsync($"api/admin/contact/{mine.Id}/status",
