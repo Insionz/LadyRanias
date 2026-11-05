@@ -1,6 +1,8 @@
-import { Badge, Card, Group, Text } from '@mantine/core'
+import { Anchor, Badge, Card, Group, Text } from '@mantine/core'
+import { Link } from 'react-router'
 import type { Kitten } from '../types/types'
 import { kittenStatusBadge, sexLabel } from '../utils/format'
+import { contactLink } from '../utils/contactLink'
 
 export default function KittenCard({ kitten }: { kitten: Kitten }) {
   const badge = kittenStatusBadge(kitten.status)
@@ -19,6 +21,11 @@ export default function KittenCard({ kitten }: { kitten: Kitten }) {
         {sexLabel(kitten.sex)}
       </Text>
       {kitten.description && <Text size="sm">{kitten.description}</Text>}
+      {kitten.status === 'Available' && (
+        <Anchor component={Link} to={contactLink(`Kattungen ${kitten.name}`)} size="sm" mt="xs" display="block">
+          Spør om {kitten.name}
+        </Anchor>
+      )}
     </Card>
   )
 }

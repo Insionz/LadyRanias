@@ -19,6 +19,8 @@ function defaultMessage(status: number) {
       return 'Du har ikke tilgang til dette.'
     case 404:
       return 'Fant ikke det du lette etter.'
+    case 429:
+      return 'Du har sendt mange meldinger på kort tid. Prøv igjen om en time.'
     default:
       return `Serveren svarte med feil (${status}).`
   }
@@ -50,7 +52,7 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
   return (await response.json()) as T
 }
 
-/** POST, PUT og DELETE. Gir tilbake JSON-svaret, eller null hvis svaret er tomt (204 No Content). */
+/** POST, PUT og DELETE. Gir tilbake JSON-svaret, eller null hvis svaret er tomt (for eksempel 202 eller 204). */
 export async function send<T = void>(method: 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown): Promise<T | null> {
   const response = await fetch(url, {
     method,
@@ -60,7 +62,10 @@ export async function send<T = void>(method: 'POST' | 'PUT' | 'DELETE', url: str
   if (!response.ok) {
     throw await errorFrom(response)
   }
-  return response.status === 204 ? null : ((await response.json()) as T)
+  // Les som tekst først: flere svar har ingen kropp (202 Accepted, 204 No Content),
+  // og response.json() feiler på en tom kropp.
+  const text = await response.text()
+  return text ? (JSON.parse(text) as T) : null
 }
 
 /** Laster opp en fil som multipart/form-data. Feltnavnet må være «formFile», som i controlleren. */

@@ -5,7 +5,8 @@ namespace LadyRanias.App.Components.Contact.Impl;
 internal sealed class ContactHandler(
     IContactDatabase database,
     TimeProvider timeProvider,
-    ILogger<ContactHandler> logger) : IContactHandler
+    ILogger<ContactHandler> logger,
+    INotificationQueue notificationQueue) : IContactHandler
 {
     public async Task CreateAsync(CreateContactMessageDto message, CancellationToken cancellationToken)
     {
@@ -21,7 +22,6 @@ internal sealed class ContactHandler(
         var entity = new ContactMessageEntity
         {
             Id = Guid.NewGuid(),
-            // Trim fjerner mellomrom før og etter. Tomme valgfrie felt lagres som null, ikke som "".
             Name = message.Name.Trim(),
             Email = message.Email.Trim(),
             Phone = EmptyToNull(message.Phone),
@@ -32,11 +32,47 @@ internal sealed class ContactHandler(
             CreatedAt = timeProvider.GetUtcNow(),
         };
 
+        // Lagre først, så legg i køen. Feiler køen, ligger meldingen likevel trygt i tabellen
+        // og vises på adminsiden. Bare e-postvarselet uteblir.
         await database.SaveAsync(entity, cancellationToken);
+        await notificationQueue.EnqueueAsync(entity.Id, cancellationToken);
+    }
 
-        // Del 3: her legges meldingens id i køen, så bakgrunnsjobben kan sende e-postvarselet.
+    public async Task<IReadOnlyList<ContactMessageDto>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        var all = await database.GetAllAsync(cancellationToken);
+
+        return [.. all.OrderByDescending(m => m.CreatedAt).Select(ToDto)];
+    }
+
+    public async Task<ContactMessageDto?> ChangeStatusAsync(Guid id, ContactStatusEnum status, CancellationToken cancellationToken)
+    {
+        var message = await database.GetAsync(id, cancellationToken);
+        if (message == null) return null;
+
+        var changed = message with { Status = status };
+        await database.SaveAsync(changed, cancellationToken);
+        return ToDto(changed);
+    }
+
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return database.DeleteAsync(id, cancellationToken);
     }
 
     private static string? EmptyToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static ContactMessageDto ToDto(ContactMessageEntity message) => new()
+    {
+        Id = message.Id,
+        Name = message.Name,
+        Email = message.Email,
+        Phone = message.Phone,
+        Subject = message.Subject,
+        Message = message.Message,
+        Status = message.Status,
+        EmailSentAt = message.EmailSentAt,
+        CreatedAt = message.CreatedAt,
+    };
 }

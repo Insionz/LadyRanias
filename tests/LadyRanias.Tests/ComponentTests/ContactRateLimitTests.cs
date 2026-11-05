@@ -24,6 +24,7 @@ public sealed class ContactRateLimitTests
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton<IContactDatabase, InMemoryContactDatabase>();
+                    services.AddSingleton<INotificationQueue, InMemoryNotificationQueue>();
                     services.AddTestAuth();
                 });
             });

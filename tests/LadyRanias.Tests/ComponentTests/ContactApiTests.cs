@@ -1,15 +1,23 @@
+using LadyRanias.App.Components.Contact.Api;
 using LadyRanias.App.Components.Contact.Impl;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LadyRanias.Tests.ComponentTests;
 
 [TestClass]
 public sealed class ContactApiTests
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private static WebApplicationFactory<Program> _factory = null!;
     private HttpClient _httpClient = null!;
 
@@ -25,6 +33,7 @@ public sealed class ContactApiTests
                 builder.ConfigureTestServices(services =>
                 {
                     services.AddSingleton<IContactDatabase, InMemoryContactDatabase>();
+                    services.AddSingleton<INotificationQueue, InMemoryNotificationQueue>();
                     services.AddTestAuth();
                 });
             });
@@ -94,5 +103,30 @@ public sealed class ContactApiTests
         });
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task Sent_message_is_listed_for_admin_and_can_be_marked_answered_and_deleted()
+    {
+        var name = $"Kari {Guid.NewGuid():N}"; // unikt, siden testene deler database
+        await _httpClient.PostAsJsonAsync("api/public/contact", new
+        {
+            name,
+            email = "kari@example.com",
+            message = "Har dere kattunger til våren?",
+        });
+
+        var admin = _factory.CreateClient().AsAdmin();
+        var messages = await admin.GetFromJsonAsync<List<ContactMessageDto>>("api/admin/contact", Json);
+        var mine = messages?.SingleOrDefault(m => m.Name == name);
+        Assert.IsNotNull(mine);
+        Assert.AreEqual(ContactStatusEnum.New, mine.Status);
+
+        var statusResponse = await admin.PutAsJsonAsync($"api/admin/contact/{mine.Id}/status",
+            new ChangeContactStatusDto { Status = ContactStatusEnum.Answered }, Json);
+        Assert.AreEqual(HttpStatusCode.OK, statusResponse.StatusCode);
+
+        var deleteResponse = await admin.DeleteAsync($"api/admin/contact/{mine.Id}");
+        Assert.AreEqual(HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }
 }

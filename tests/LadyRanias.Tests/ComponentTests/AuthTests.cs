@@ -84,6 +84,8 @@ public sealed class AuthTests
     [DataRow("DELETE", "api/admin/cats/00000000-0000-0000-0000-000000000001/images/00000000-0000-0000-0000-000000000002")]
     [DataRow("GET", "api/admin/litters/00000000-0000-0000-0000-000000000001")]
     [DataRow("DELETE", "api/admin/litters/00000000-0000-0000-0000-000000000001")]
+    [DataRow("GET", "api/admin/contact")]
+    [DataRow("DELETE", "api/admin/contact/00000000-0000-0000-0000-000000000001")]
     public async Task Every_admin_controller_requires_login(string method, string url)
     {
         var client = _factory.CreateClient();

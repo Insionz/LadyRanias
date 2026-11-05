@@ -5,6 +5,7 @@ import KittenCard from '../components/KittenCard'
 import { ErrorMessage, Loading } from '../components/Status'
 import type { Cat, Litter } from '../types/types'
 import { ageLabel, formatDate, formatMonth } from '../utils/format'
+import { contactLink } from '../utils/contactLink'
 
 /** Mor og far som lenker. Er katten slettet, står det bare «ukjent». */
 function Parents({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }) {
@@ -43,6 +44,9 @@ function PlannedLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat
           {litter.description}
         </Text>
       )}
+      <Anchor component={Link} to={contactLink(litter.name)} size="sm" mt="sm" display="inline-block">
+        Meld interesse for {litter.name}
+      </Anchor>
     </Card>
   )
 }

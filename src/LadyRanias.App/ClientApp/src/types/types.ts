@@ -51,3 +51,17 @@ export type Me = {
   email: string | null
   isAdmin: boolean
 }
+
+export type ContactStatus = 'New' | 'Read' | 'Answered'
+
+export type ContactMessage = {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  subject: string | null
+  message: string
+  status: ContactStatus
+  emailSentAt: string | null
+  createdAt: string
+}
