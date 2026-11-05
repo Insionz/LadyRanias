@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 
@@ -10,13 +10,32 @@ public static class AuthComponent
     {
         var azureAd = builder.Configuration.GetSection("AzureAd");
 
-        builder.Services
-            .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-            .AddMicrosoftIdentityWebApp(azureAd);
+        if (string.IsNullOrEmpty(azureAd["ClientId"]))
+        {
+            // Uten Entra-oppsett (CI og tester har ikke user secrets).
+            // I produksjon er det en feil: da skal appen stoppe med en gang, ikke kjøre uten innlogging.
+            if (builder.Environment.IsProduction())
+            {
+                throw new InvalidOperationException("AzureAd:ClientId mangler i konfigurasjonen. Innlogging kan ikke settes opp.");
+            }
+
+            // Ellers: bare cookie, uten Entra. Ingen kan logge inn, så api/admin gir alltid 401.
+            // Testene bytter dette ut med TestAuthHandler.
+            builder.Services
+                .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie();
+        }
+        else
+        {
+            builder.Services
+                .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+                .AddMicrosoftIdentityWebApp(azureAd);
+        }
 
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
 
+        // Ikke innlogget, med Entra: OpenIdConnect vil sende til Entra. For api/... svarer vi 401 i stedet.
         builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
         {
             var existing = options.Events.OnRedirectToIdentityProvider;
@@ -37,18 +56,30 @@ public static class AuthComponent
 
         builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, options =>
         {
-            var existing = options.Events.OnRedirectToAccessDenied;
-            options.Events.OnRedirectToAccessDenied = async context =>
+            // Ikke innlogget, uten Entra: cookien vil sende til en innloggingsside. For api/... svarer vi 401.
+            var existingLogin = options.Events.OnRedirectToLogin;
+            options.Events.OnRedirectToLogin = context =>
             {
-                var path = context.Request.Path;
-
-                if (path.StartsWithSegments("/api"))
+                if (context.Request.Path.StartsWithSegments("/api"))
                 {
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    return;
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
                 }
 
-                await existing(context);
+                return existingLogin(context);
+            };
+
+            // Innlogget, men uten rollen: 403 i stedet for omdirigering til «Access denied».
+            var existingDenied = options.Events.OnRedirectToAccessDenied;
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                return existingDenied(context);
             };
         });
 
