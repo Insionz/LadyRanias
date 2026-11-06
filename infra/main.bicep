@@ -140,6 +140,18 @@ resource storageRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   }
 ]
 
+// Application Insights (steg 13): forespørsler, feil, kall til Storage og loggene fra appen.
+// Dataene lagres i det felles Log Analytics-workspacet, så alt kan søkes i samme sted.
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-ladyranias-${environmentName}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-ladyranias-${environmentName}'
   location: location
@@ -172,6 +184,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         { name: 'entra-client-secret', value: entraClientSecret }
         { name: 'email-connection-string', value: emailConnectionString }
+        { name: 'appinsights-connection-string', value: appInsights.properties.ConnectionString }
       ]
     }
     template: {
@@ -194,6 +207,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Email__ConnectionString', secretRef: 'email-connection-string' }
             { name: 'Email__SenderAddress', value: emailSenderAddress }
             { name: 'Email__NotifyAddress', value: emailNotifyAddress }
+            // Finnes denne, sender appen telemetri til Application Insights (se TelemetryComponent).
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection-string' }
+            // Navnet appen får i Application Insights (cloud_RoleName).
+            { name: 'OTEL_SERVICE_NAME', value: 'ladyranias-${environmentName}' }
           ]
           // Azure spør appen jevnlig om den har det bra (steg 13).
           // Startup:   venter til appen har startet før de andre slår inn (opptil 10 × 3 s = 30 s).
