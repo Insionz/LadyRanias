@@ -12,6 +12,15 @@ public sealed record CatDto
     public required string Description { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
 
+    /// <summary>Unknown for katter som ble lagt inn før rasen fantes. Mamma må sette den i admin.</summary>
+    public required Breed Breed { get; set; }
+    public required CatRole Role { get; set; }
+    public string? EmsCode { get; set; }
+    public string? Color { get; set; }
+    public bool Neutered { get; set; }
+    public string? RegistrationNumber { get; set; }
+    public string? Titles { get; set; }
+
     /// <summary>Satt hvis katten er født her. Da er den (eller har vært) en kattunge i dette kullet.</summary>
     public Guid? LitterId { get; set; }
 
@@ -25,6 +34,17 @@ public sealed record CreateCatDto
     public required DateOnly BirthDate { get; set; }
     public required SexEnum Sex { get; set; }
     [Required] public required string Description { get; set; }
+    public required Breed Breed { get; set; }
+
+    /// <summary>Breeding, Retired eller External. Kattunger lages bare via kullet.</summary>
+    public CatRole Role { get; set; } = CatRole.Breeding;
+
+    /// <summary>«MCO n 22». Valgfri. Er den fylt ut, må den begynne med rasekoden.</summary>
+    [StringLength(30)] public string? EmsCode { get; set; }
+    [StringLength(60)] public string? Color { get; set; }
+    public bool Neutered { get; set; }
+    [StringLength(60)] public string? RegistrationNumber { get; set; }
+    [StringLength(60)] public string? Titles { get; set; }
 }
 
 /// <summary>Full oppdatering: alle feltene sendes, også de som ikke er endret.</summary>
@@ -34,6 +54,17 @@ public sealed record UpdateCatDto
     public required DateOnly BirthDate { get; set; }
     public required SexEnum Sex { get; set; }
     [Required] public required string Description { get; set; }
+    public required Breed Breed { get; set; }
+
+    /// <summary>En beholdt kattunge kan bli Breeding eller Retired. Bare katter født i et kull kan være Kitten.</summary>
+    public CatRole Role { get; set; } = CatRole.Breeding;
+
+    /// <summary>«MCO n 22». Valgfri. Er den fylt ut, må den begynne med rasekoden.</summary>
+    [StringLength(30)] public string? EmsCode { get; set; }
+    [StringLength(60)] public string? Color { get; set; }
+    public bool Neutered { get; set; }
+    [StringLength(60)] public string? RegistrationNumber { get; set; }
+    [StringLength(60)] public string? Titles { get; set; }
 }
 
 public enum SexEnum
@@ -41,6 +72,29 @@ public enum SexEnum
     Unknown = 0,
     Male = 1,
     Female = 2,
+}
+
+/// <summary>EMS-koden for rasen: MCO og SBI. Unknown avvises ved lagring, som SexEnum.Unknown.</summary>
+public enum Breed
+{
+    Unknown = 0,
+    MaineCoon = 1,
+    SacredBirman = 2,
+}
+
+public enum CatRole
+{
+    /// <summary>I avl hos oss</summary>
+    Breeding = 0,
+
+    /// <summary>Pensjonert, bor fortsatt her</summary>
+    Retired = 1,
+
+    /// <summary>Født i et kull hos oss. Har LitterId og SaleStatus.</summary>
+    Kitten = 2,
+
+    /// <summary>Fra et annet oppdrett, for eksempel en lånt hannkatt. Kan være forelder, men vises ikke blant våre katter.</summary>
+    External = 3,
 }
 
 /// <summary>

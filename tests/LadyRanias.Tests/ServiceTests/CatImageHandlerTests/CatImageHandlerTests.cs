@@ -41,6 +41,7 @@ public sealed class CatImageHandlerTests
     {
         _kiara = await _catHandler.CreateAsync(new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Kiara",
             Sex = SexEnum.Female,
             BirthDate = new DateOnly(2024, 3, 1),

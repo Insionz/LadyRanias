@@ -93,6 +93,7 @@ public sealed class CatHandlerTests
     {
         var createdCat = await _handler.CreateAsync(new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Test",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2025, 05, 05),
@@ -125,6 +126,7 @@ public sealed class CatHandlerTests
 
         var catBornTomorrow = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Test",
             Sex = SexEnum.Male,
             BirthDate = birthDate,
@@ -142,6 +144,7 @@ public sealed class CatHandlerTests
 
         var catBornTomorrow = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Test",
             Sex = SexEnum.Unknown,
             BirthDate = birthDate,
@@ -159,6 +162,7 @@ public sealed class CatHandlerTests
 
         var catBornToday = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Test",
             Sex = SexEnum.Male,
             BirthDate = birthDateToday,
@@ -190,6 +194,7 @@ public sealed class CatHandlerTests
 
     private static UpdateCatDto ValidUpdate() => new()
     {
+        Breed = Breed.MaineCoon,
         Name = "Kiara Nova",
         Sex = SexEnum.Female,
         BirthDate = new DateOnly(2026, 2, 15),
@@ -250,6 +255,7 @@ public sealed class CatHandlerTests
 
     private static CreateCatDto NewKitten(string name) => new()
     {
+        Breed = Breed.MaineCoon,
         Name = name,
         Sex = SexEnum.Female,
         BirthDate = new DateOnly(2026, 10, 1),
@@ -324,6 +330,8 @@ public sealed class CatHandlerTests
 
         var updated = await _handler.UpdateAsync(kitten.Id, new UpdateCatDto
         {
+            Breed = Breed.MaineCoon,
+            Role = CatRole.Kitten,
             Name = "Ask Nytt Navn",
             Sex = kitten.Sex,
             BirthDate = kitten.BirthDate,
@@ -333,6 +341,127 @@ public sealed class CatHandlerTests
         Assert.IsNotNull(updated);
         Assert.AreEqual(kitten.LitterId, updated.LitterId);
         Assert.AreEqual(KittenStatus.Available, updated.SaleStatus);
+    }
+
+    // ---------- Rase, EMS og rolle (steg 14 del 2) ----------
+
+    private static CreateCatDto NewAdult() => new()
+    {
+        Breed = Breed.SacredBirman,
+        Name = "Mira",
+        Sex = SexEnum.Female,
+        BirthDate = new DateOnly(2024, 5, 1),
+        Description = "Birma",
+    };
+
+    [TestMethod]
+    public async Task Create_without_breed_is_rejected()
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { Breed = Breed.Unknown }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    [DataRow("SBI a 21")]
+    [DataRow("sbi n")]          // små bokstaver er greit
+    [DataRow("  SBI   n  ")]    // mellomrom ryddes bort
+    [DataRow("")]               // valgfri
+    [DataRow(null)]
+    public async Task Ems_code_matching_breed_is_accepted(string? ems)
+    {
+        var cat = await _handler.CreateAsync(NewAdult() with { EmsCode = ems }, CancellationToken.None);
+
+        Assert.AreEqual(Breed.SacredBirman, cat.Breed);
+    }
+
+    [TestMethod]
+    public async Task Ems_code_is_cleaned_and_empty_text_becomes_null()
+    {
+        var cat = await _handler.CreateAsync(NewAdult() with { EmsCode = "  SBI   n  ", Color = "   " }, CancellationToken.None);
+
+        Assert.AreEqual("SBI n", cat.EmsCode);
+        Assert.IsNull(cat.Color);
+    }
+
+    [TestMethod]
+    [DataRow("MCO n 22")]   // feil rase
+    [DataRow("SBIX n")]     // ikke en rasekode
+    [DataRow("n 21")]       // rasekoden mangler
+    public async Task Ems_code_for_another_breed_is_rejected(string ems)
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { EmsCode = ems }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Create_as_kitten_is_rejected()
+    {
+        // Kattunger lages via kullet, så de får LitterId.
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { Role = CatRole.Kitten }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task External_cat_is_in_admin_list_but_not_among_our_own()
+    {
+        var external = await _handler.CreateAsync(NewAdult() with { Role = CatRole.External, Sex = SexEnum.Male }, CancellationToken.None);
+        var retired = await _handler.CreateAsync(NewAdult() with { Role = CatRole.Retired }, CancellationToken.None);
+
+        var all = await _handler.GetAllAsync(CancellationToken.None);
+        var own = await _handler.GetOwnAsync(CancellationToken.None);
+
+        Assert.IsTrue(all.Any(c => c.Id == external.Id));
+        Assert.IsFalse(own.Any(c => c.Id == external.Id));
+        Assert.IsTrue(own.Any(c => c.Id == retired.Id));
+    }
+
+    private static UpdateCatDto UpdateFrom(CatDto cat, CatRole role) => new()
+    {
+        Name = cat.Name,
+        Sex = cat.Sex,
+        BirthDate = cat.BirthDate,
+        Description = cat.Description,
+        Breed = cat.Breed,
+        Role = role,
+    };
+
+    [TestMethod]
+    public async Task Adult_cat_cannot_become_kitten()
+    {
+        var cat = await _handler.CreateAsync(NewAdult(), CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(cat.Id, UpdateFrom(cat, CatRole.Kitten), CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Kitten_that_is_not_kept_cannot_become_breeding_cat()
+    {
+        var kitten = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask"), CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(kitten.Id, UpdateFrom(kitten, CatRole.Breeding), CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Kept_kitten_becomes_breeding_cat_and_shows_among_our_cats()
+    {
+        var litterId = Guid.NewGuid();
+        var kitten = await _handler.CreateKittenAsync(litterId, NewKitten("Ask"), CancellationToken.None);
+        var kept = await _handler.SetSaleStatusAsync(kitten.Id, KittenStatus.Kept, CancellationToken.None);
+        Assert.IsNotNull(kept);
+
+        var grownUp = await _handler.UpdateAsync(kitten.Id, UpdateFrom(kept, CatRole.Breeding), CancellationToken.None);
+
+        Assert.IsNotNull(grownUp);
+        Assert.AreEqual(CatRole.Breeding, grownUp.Role);
+        Assert.AreEqual(litterId, grownUp.LitterId); // husker fortsatt hvor den er født
+        Assert.IsTrue((await _handler.GetOwnAsync(CancellationToken.None)).Any(c => c.Id == kitten.Id));
+        Assert.HasCount(1, await _handler.GetByLitterAsync(litterId, CancellationToken.None)); // og vises fortsatt i kullet
+
+        // Nå er den ingen kattunge lenger, så den har ingen salgsstatus å endre.
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.SetSaleStatusAsync(kitten.Id, KittenStatus.Available, CancellationToken.None));
     }
 
     /// <summary>Husker hvilke katter den har fått beskjed om, så testen kan sjekke at CatHandler sier fra.</summary>

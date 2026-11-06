@@ -10,71 +10,25 @@ internal sealed class CatHandler(
 {
     public async Task<IReadOnlyList<CatDto>> GetAllAsync(CancellationToken cancellationToken)
     {
+        // Kattungene vises i kullet sitt. En beholdt kattunge som er blitt avlskatt, har ikke lenger Role = Kitten
+        // og kommer med her.
+        return await GetWhereAsync(cat => cat.Role != CatRole.Kitten, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CatDto>> GetOwnAsync(CancellationToken cancellationToken)
+    {
+        return await GetWhereAsync(cat => cat.Role is CatRole.Breeding or CatRole.Retired, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<CatDto>> GetWhereAsync(Func<CatEntity, bool> filter, CancellationToken cancellationToken)
+    {
         var allCats = await database.GetAllAsync(cancellationToken);
 
-        // Kattungene vises i kullet sitt, ikke blant de voksne kattene.
-        // (Del 2 bytter dette ut med Role, så en beholdt kattunge kan bli avlskatt.)
         return allCats
-            .Where(cat => cat.LitterId == null)
+            .Where(filter)
             .OrderByDescending(cat => cat.CreatedAt)
             .Select(ToDto)
             .ToList();
-    }
-
-    public async Task<IReadOnlyList<CatDto>> GetByLitterAsync(Guid litterId, CancellationToken cancellationToken)
-    {
-        // Henter alle og filtrerer i minnet. Med noen titalls katter er det raskere enn det høres ut,
-        // og enklere enn en egen indeks på LitterId.
-        var allCats = await database.GetAllAsync(cancellationToken);
-
-        return allCats
-            .Where(cat => cat.LitterId == litterId)
-            .OrderBy(cat => cat.CreatedAt)
-            .Select(ToDto)
-            .ToList();
-    }
-
-    public async Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken)
-    {
-        var timeNow = timeProvider.GetUtcNow();
-
-        Validate(newKitten.Sex, newKitten.BirthDate, timeNow);
-
-        var kitten = new CatEntity
-        {
-            Id = Guid.NewGuid(),
-            Name = newKitten.Name,
-            Sex = newKitten.Sex,
-            Description = newKitten.Description,
-            BirthDate = newKitten.BirthDate,
-            CreatedAt = timeNow,
-            LitterId = litterId,
-            SaleStatus = KittenStatus.Available,
-        };
-
-        await database.SaveAsync(kitten, cancellationToken);
-
-        return ToDto(kitten);
-    }
-
-    public async Task<CatDto?> SetSaleStatusAsync(Guid id, KittenStatus status, CancellationToken cancellationToken)
-    {
-        var cat = await database.GetAsync(id, cancellationToken);
-
-        if (cat == null)
-        {
-            return null;
-        }
-
-        if (cat.LitterId == null)
-        {
-            throw new ValidationException("Only kittens have a sale status");
-        }
-
-        var changed = cat with { SaleStatus = status };
-        await database.SaveAsync(changed, cancellationToken);
-
-        return ToDto(changed);
     }
 
     public async Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -88,7 +42,12 @@ internal sealed class CatHandler(
     {
         var timeNow = timeProvider.GetUtcNow();
 
-        Validate(newCat.Sex, newCat.BirthDate, timeNow);
+        Validate(newCat.Sex, newCat.BirthDate, newCat.Breed, newCat.EmsCode, timeNow);
+
+        if (newCat.Role == CatRole.Kitten)
+        {
+            throw new ValidationException("Role: kittens are added to a litter");
+        }
 
         var cat = new CatEntity
         {
@@ -98,6 +57,13 @@ internal sealed class CatHandler(
             Description = newCat.Description,
             BirthDate = newCat.BirthDate,
             CreatedAt = timeNow,
+            Breed = newCat.Breed,
+            Role = newCat.Role,
+            EmsCode = Clean(newCat.EmsCode),
+            Color = Clean(newCat.Color),
+            Neutered = newCat.Neutered,
+            RegistrationNumber = Clean(newCat.RegistrationNumber),
+            Titles = Clean(newCat.Titles),
         };
 
         await database.SaveAsync(cat, cancellationToken);
@@ -115,15 +81,23 @@ internal sealed class CatHandler(
         }
 
         // Samme regler som ved opprettelse.
-        Validate(update.Sex, update.BirthDate, timeProvider.GetUtcNow());
+        Validate(update.Sex, update.BirthDate, update.Breed, update.EmsCode, timeProvider.GetUtcNow());
+        ValidateRoleChange(cat, update.Role);
 
-        // «with» lager en kopi med de nye verdiene. Id og CreatedAt følger med uendret.
+        // «with» lager en kopi med de nye verdiene. Id, CreatedAt, LitterId og SaleStatus følger med uendret.
         var updatedCat = cat with
         {
             Name = update.Name,
             Sex = update.Sex,
             BirthDate = update.BirthDate,
             Description = update.Description,
+            Breed = update.Breed,
+            Role = update.Role,
+            EmsCode = Clean(update.EmsCode),
+            Color = Clean(update.Color),
+            Neutered = update.Neutered,
+            RegistrationNumber = Clean(update.RegistrationNumber),
+            Titles = Clean(update.Titles),
         };
 
         await database.SaveAsync(updatedCat, cancellationToken);
@@ -150,7 +124,79 @@ internal sealed class CatHandler(
         return true;
     }
 
-    private static void Validate(SexEnum sex, DateOnly birthDate, DateTimeOffset now)
+    public async Task<IReadOnlyList<CatDto>> GetByLitterAsync(Guid litterId, CancellationToken cancellationToken)
+    {
+        // Henter alle og filtrerer i minnet. Med noen titalls katter er det raskere enn det høres ut,
+        // og enklere enn en egen indeks på LitterId.
+        // Alle som er født i kullet kommer med, også en som er blitt avlskatt. Kullet viser hele historien.
+        var allCats = await database.GetAllAsync(cancellationToken);
+
+        return allCats
+            .Where(cat => cat.LitterId == litterId)
+            .OrderBy(cat => cat.CreatedAt)
+            .Select(ToDto)
+            .ToList();
+    }
+
+    public async Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken)
+    {
+        var timeNow = timeProvider.GetUtcNow();
+
+        Validate(newKitten.Sex, newKitten.BirthDate, newKitten.Breed, newKitten.EmsCode, timeNow);
+
+        var kitten = new CatEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = newKitten.Name,
+            Sex = newKitten.Sex,
+            Description = newKitten.Description,
+            BirthDate = newKitten.BirthDate,
+            CreatedAt = timeNow,
+            Breed = newKitten.Breed,
+            Role = CatRole.Kitten,
+            EmsCode = Clean(newKitten.EmsCode),
+            Color = Clean(newKitten.Color),
+            Neutered = newKitten.Neutered,
+            RegistrationNumber = Clean(newKitten.RegistrationNumber),
+            Titles = Clean(newKitten.Titles),
+            LitterId = litterId,
+            SaleStatus = KittenStatus.Available,
+        };
+
+        await database.SaveAsync(kitten, cancellationToken);
+
+        return ToDto(kitten);
+    }
+
+    public async Task<CatDto?> SetSaleStatusAsync(Guid id, KittenStatus status, CancellationToken cancellationToken)
+    {
+        var cat = await database.GetAsync(id, cancellationToken);
+
+        if (cat == null)
+        {
+            return null;
+        }
+
+        if (cat.Role != CatRole.Kitten)
+        {
+            throw new ValidationException("Only kittens have a sale status");
+        }
+
+        var changed = cat with { SaleStatus = status };
+        await database.SaveAsync(changed, cancellationToken);
+
+        return ToDto(changed);
+    }
+
+    /// <summary>Rasekoden i EMS. Første del av en EMS-kode, «MCO n 22».</summary>
+    internal static string EmsBreedCode(Breed breed) => breed switch
+    {
+        Breed.MaineCoon => "MCO",
+        Breed.SacredBirman => "SBI",
+        _ => throw new ArgumentOutOfRangeException(nameof(breed), breed, "No EMS code"),
+    };
+
+    private static void Validate(SexEnum sex, DateOnly birthDate, Breed breed, string? emsCode, DateTimeOffset now)
     {
         if (birthDate > DateOnly.FromDateTime(now.UtcDateTime))
         {
@@ -161,20 +207,78 @@ internal sealed class CatHandler(
         {
             throw new ValidationException("Sex must be either male or female");
         }
+
+        if (breed == Breed.Unknown || !Enum.IsDefined(breed))
+        {
+            throw new ValidationException("Breed must be set");
+        }
+
+        // EMS-koden er valgfri (en Birma-kattunge har ikke fått fargen sin ennå),
+        // men er den fylt ut, må den høre til rasen. «SBI a» på en Maine Coon er en skrivefeil.
+        var ems = Clean(emsCode);
+        if (ems != null)
+        {
+            var code = EmsBreedCode(breed);
+            var firstPart = ems.Split(' ')[0];
+            if (!firstPart.Equals(code, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ValidationException($"EmsCode must start with {code} for this breed");
+            }
+        }
     }
 
-    private static CatDto ToDto(CatEntity newCat)
+    /// <summary>
+    /// Kitten → voksen: bare en beholdt kattunge kan bli avlskatt eller pensjonist. En solgt kattunge bor ikke her.
+    /// Voksen → Kitten: bare en katt som er født i et kull hos oss.
+    /// </summary>
+    private static void ValidateRoleChange(CatEntity cat, CatRole newRole)
+    {
+        if (cat.Role == newRole)
+        {
+            return;
+        }
+
+        if (newRole == CatRole.Kitten && cat.LitterId == null)
+        {
+            throw new ValidationException("Role: only a cat born in a litter can be a kitten");
+        }
+
+        if (cat.Role == CatRole.Kitten && cat.SaleStatus != KittenStatus.Kept)
+        {
+            throw new ValidationException("Role: only a kept kitten can become an adult cat here");
+        }
+    }
+
+    /// <summary>Fjerner mellomrom foran og bak, og doble mellomrom inni. Tom tekst blir null.</summary>
+    private static string? Clean(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return string.Join(' ', value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    }
+
+    private static CatDto ToDto(CatEntity cat)
     {
         return new CatDto
         {
-            Id = newCat.Id,
-            Name = newCat.Name,
-            Sex = newCat.Sex,
-            Description = newCat.Description,
-            BirthDate = newCat.BirthDate,
-            CreatedAt = newCat.CreatedAt,
-            LitterId = newCat.LitterId,
-            SaleStatus = newCat.SaleStatus,
+            Id = cat.Id,
+            Name = cat.Name,
+            Sex = cat.Sex,
+            Description = cat.Description,
+            BirthDate = cat.BirthDate,
+            CreatedAt = cat.CreatedAt,
+            Breed = cat.Breed,
+            Role = cat.Role,
+            EmsCode = cat.EmsCode,
+            Color = cat.Color,
+            Neutered = cat.Neutered,
+            RegistrationNumber = cat.RegistrationNumber,
+            Titles = cat.Titles,
+            LitterId = cat.LitterId,
+            SaleStatus = cat.SaleStatus,
         };
     }
 }

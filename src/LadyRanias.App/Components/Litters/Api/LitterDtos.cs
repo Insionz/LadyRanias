@@ -23,6 +23,25 @@ public sealed record LitterDto
 
     /// <summary>Kattungene følger med, så frontend får hele kullet i ett kall.</summary>
     public required IReadOnlyList<KittenDto> Kittens { get; set; }
+
+    /// <summary>
+    /// Navn og rase på mor og far, så siden kan vise dem uten å hente kattene selv.
+    /// Det trengs fordi en ekstern far ikke er med i lista over våre katter. null hvis katten er slettet.
+    /// </summary>
+    public ParentDto? Mother { get; set; }
+    public ParentDto? Father { get; set; }
+}
+
+public sealed record ParentDto
+{
+    public required Guid Id { get; set; }
+    public required string Name { get; set; }
+    public required Breed Breed { get; set; }
+    public string? EmsCode { get; set; }
+    public string? Titles { get; set; }
+
+    /// <summary>Fra et annet oppdrett. Siden lenker ikke til den, for den hører ikke til våre katter.</summary>
+    public required bool IsExternal { get; set; }
 }
 
 /// <summary>
@@ -37,6 +56,9 @@ public sealed record KittenDto
     public required KittenStatus Status { get; set; }
     public required string Description { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }
+    public Breed Breed { get; set; }
+    public string? EmsCode { get; set; }
+    public string? Color { get; set; }
 }
 
 public sealed record CreateLitterDto

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
-import { send } from '../../api/api'
+import { send, useApi } from '../../api/api'
 import ConfirmButton from '../../components/ConfirmButton'
+import { ErrorMessage, Loading } from '../../components/Status'
+import CatForm from './CatForm'
 import CatImagesEditor from './CatImagesEditor'
 import type { Cat, Kitten, KittenStatus, Litter, Sex } from '../../types/types'
 import { formatDate, kittenStatusBadge, sexLabel } from '../../utils/format'
@@ -22,6 +24,7 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
   const [kittenName, setKittenName] = useState('')
   const [kittenSex, setKittenSex] = useState<Sex | null>(null)
   const [imagesFor, setImagesFor] = useState<Kitten | null>(null)
+  const [editing, setEditing] = useState<Kitten | null>(null)
 
   /** Kjører en handling mot API-et, viser feilen hvis den feiler, og laster lista på nytt hvis den lykkes. */
   async function run(action: () => Promise<unknown>) {
@@ -131,6 +134,9 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                           </Table.Td>
                           <Table.Td>
                             <Group justify="flex-end" gap="xs">
+                              <Button size="xs" variant="light" onClick={() => setEditing(kitten)}>
+                                Rediger
+                              </Button>
                               <Button size="xs" variant="light" onClick={() => setImagesFor(kitten)}>
                                 Bilder
                               </Button>
@@ -172,10 +178,35 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
         )}
       </Stack>
 
+      {/* Samme skjema som for de voksne kattene: farge, EMS-kode og, for en beholdt kattunge, ny rolle. */}
+      <Modal opened={editing !== null} onClose={() => setEditing(null)} title={`Rediger ${editing?.name ?? ''}`} size="lg">
+        {editing && (
+          <KittenEditor
+            key={editing.id}
+            kittenId={editing.id}
+            onCancel={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null)
+              onChanged()
+            }}
+          />
+        )}
+      </Modal>
+
       {/* Samme bildeeditor som for de voksne kattene. En kattunge er en katt, med samme id. */}
       <Modal opened={imagesFor !== null} onClose={() => setImagesFor(null)} title={`Bilder av ${imagesFor?.name ?? ''}`} size="lg">
         {imagesFor && <CatImagesEditor key={imagesFor.id} catId={imagesFor.id} />}
       </Modal>
     </Card>
   )
+}
+
+/** Kullet kjenner bare navn, kjønn og status. Skjemaet trenger hele katten, så den hentes her. */
+function KittenEditor({ kittenId, onSaved, onCancel }: { kittenId: string; onSaved: () => void; onCancel: () => void }) {
+  const cat = useApi<Cat>(`/api/admin/cats/${kittenId}`)
+
+  if (cat.loading) return <Loading />
+  if (cat.error || !cat.data) return <ErrorMessage message={cat.error ?? 'Fant ikke kattungen'} />
+
+  return <CatForm cat={cat.data} onSaved={onSaved} onCancel={onCancel} />
 }

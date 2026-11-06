@@ -172,6 +172,7 @@ public sealed class CatImageApiTests
     {
         var newCat = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Mons",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 6, 1),

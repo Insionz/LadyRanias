@@ -39,7 +39,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
 | 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
 | 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | ✅ |
-| 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | Planlagt |
+| 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | ✅ |
 
 ## Utsatt til senere
 
@@ -999,17 +999,29 @@ Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
 - [x] Frontend: kattungene viser bilder, og admin har en «Bilder»-knapp per kattunge (samme `CatImagesEditor`, nå med `catId`)
 
 ### Del 2: Nye opplysninger om katten
-- [ ] `Breed`, `Role`, `EmsCode`, `Color`, `Neutered`, `RegistrationNumber`, `Titles` i DTO-ene, entiteten og tabellen
-- [ ] Regler: rasen må være satt, EMS-koden må begynne med `MCO` eller `SBI` og passe med rasen
-- [ ] En ny kattunge får `Role = Kitten` og rasen til moren
-- [ ] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
-- [ ] Adminskjemaet får de nye feltene. Rasen og rollen som nedtrekkslister, kastrert som avkrysning.
-- [ ] Katter med `Breed = Unknown` merkes i admin, så mamma ser hvilke som mangler rase
+- [x] `Breed`, `Role`, `EmsCode`, `Color`, `Neutered`, `RegistrationNumber`, `Titles` i DTO-ene, entiteten og tabellen.
+      Kolonnene er nullbare i tabellen. En gammel rad leses som `Breed = Unknown`, og `Role = Kitten` hvis den har
+      `LitterId`, ellers `Breeding`.
+- [x] Regler: rasen må være satt, EMS-koden må begynne med `MCO` eller `SBI` og passe med rasen
+      (små bokstaver og ekstra mellomrom er greit, de ryddes bort). Tom tekst lagres som `null`.
+- [x] Roller: `Kitten` kan ikke velges for en ny katt. Bare en katt født i et kull kan være `Kitten`, og bare en
+      **beholdt** kattunge kan bli `Breeding` eller `Retired`. Den beholder `LitterId` og vises fortsatt i kullet.
+- [x] `GetAllAsync` (admin) viser alle unntatt kattunger, også eksterne. `GetOwnAsync` (offentlig) viser bare `Breeding` og `Retired`.
+- [x] En ny kattunge får `Role = Kitten` og rasen til moren. Mangler moren rase, avvises den med beskjed om å sette rasen først.
+- [x] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
+- [x] Adminskjemaet får de nye feltene. Rasen og rollen som nedtrekkslister, kastrert som avkrysning.
+      Rollelisten viser bare lovlige valg, med de samme reglene som backend.
+- [x] Kattungene kan redigeres fra kullet («Rediger»), med det samme skjemaet
+- [x] Katter med `Breed = Unknown` merkes i admin, så mamma ser hvilke som mangler rase
 
 ### Del 3: Den offentlige siden
-- [ ] «Våre katter» viser bare `Breeding` og `Retired`, gruppert per rase
-- [ ] Kattesiden viser rase, farge, EMS-kode, titler og foreldre (hvis katten er født her)
-- [ ] Kullsiden viser kattungene med bilde og ledig/reservert/solgt
+- [x] «Våre katter» viser bare `Breeding` og `Retired`, gruppert per rase. Pensjonerte står sist i hver rase og er merket.
+      Katter uten rase havner under «Flere katter» til mamma har satt rasen.
+- [x] Kattesiden viser rase, farge, EMS-kode, titler, registreringsnummer og kastrert, men bare det som er fylt ut
+- [x] Er katten født her, viser kattesiden mor, far og kullet
+- [x] Kullsiden viser kattungene med bilde, rase og farge, og ledig/reservert/solgt. Hver kattunge har sin egen side.
+- [x] **Mor og far følger med i kullet** (`LitterDto.Mother` og `Father`). Før hentet siden alle kattene for å finne navnene,
+      men en ekstern far er ikke med i den lista. En ekstern far vises med navn, men uten lenke.
 
 **Utsatt:** helsetester (HCM, SMA, HD for Maine Coon) med dato per katt, stamtavle over flere generasjoner.
 

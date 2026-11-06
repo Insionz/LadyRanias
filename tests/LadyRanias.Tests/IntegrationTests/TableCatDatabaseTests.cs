@@ -61,6 +61,51 @@ public sealed class TableCatDatabaseTests
     }
 
     [TestMethod]
+    public async Task Save_then_get_returns_all_new_fields()
+    {
+        var cat = NewCat() with
+        {
+            Breed = Breed.MaineCoon,
+            Role = CatRole.Retired,
+            EmsCode = "MCO n 22",
+            Color = "Svart tabby",
+            Neutered = true,
+            RegistrationNumber = "NO*LadyRanias Bjarte",
+            Titles = "IC",
+        };
+
+        await _database.SaveAsync(cat, CancellationToken.None);
+
+        Assert.AreEqual(cat, await _database.GetAsync(cat.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
+    [DataRow(false, CatRole.Breeding)]
+    [DataRow(true, CatRole.Kitten)]
+    public async Task Cat_saved_before_the_new_fields_gets_defaults(bool bornHere, CatRole expectedRole)
+    {
+        // Slik ser en rad ut som ble lagret før steg 14 del 2: ingen Breed, Role, EmsCode og så videre.
+        var id = Guid.NewGuid();
+        await _serviceClient.GetTableClient(_tableName).UpsertEntityAsync(new CatTableEntity
+        {
+            PartitionKey = "cat",
+            RowKey = id.ToString(),
+            Name = "Gammel",
+            Sex = "Female",
+            BirthDate = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CreatedAt = DateTimeOffset.UtcNow,
+            LitterId = bornHere ? Guid.NewGuid() : null,
+        });
+
+        var cat = await _database.GetAsync(id, CancellationToken.None);
+
+        Assert.IsNotNull(cat);
+        Assert.AreEqual(Breed.Unknown, cat.Breed);
+        Assert.AreEqual(expectedRole, cat.Role);
+        Assert.IsFalse(cat.Neutered);
+    }
+
+    [TestMethod]
     public async Task Save_existing_cat_overwrites_it()
     {
         var catRequest = NewCat();

@@ -153,6 +153,7 @@ public sealed class LitterApiTests
     {
         var response = await _httpClient.PostAsJsonAsync("api/admin/cats", new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = name,
             Sex = sex,
             BirthDate = new DateOnly(2022, 1, 1),

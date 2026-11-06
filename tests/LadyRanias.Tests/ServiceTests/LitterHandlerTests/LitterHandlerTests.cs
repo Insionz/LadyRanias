@@ -37,6 +37,7 @@ public sealed class LitterHandlerTests
 
     private static CreateCatDto NewCat(string name, SexEnum sex) => new()
     {
+        Breed = Breed.MaineCoon,
         Name = name,
         Sex = sex,
         BirthDate = new DateOnly(2022, 1, 1),
@@ -177,6 +178,8 @@ public sealed class LitterHandlerTests
         Assert.AreEqual(litter.Id, cat.LitterId);
         Assert.AreEqual(Today, cat.BirthDate);
         Assert.AreEqual(KittenStatus.Available, cat.SaleStatus);
+        Assert.AreEqual(CatRole.Kitten, cat.Role);
+        Assert.AreEqual(_mother.Breed, cat.Breed); // rasen til moren
 
         // Men den vises ikke blant de voksne kattene.
         var adults = await _cats.GetAllAsync(CancellationToken.None);
@@ -192,6 +195,40 @@ public sealed class LitterHandlerTests
 
         await Assert.ThrowsExactlyAsync<ValidationException>(
             () => _handler.CreateAsync(NewLitter() with { FatherId = kitten.Id }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task External_father_is_allowed()
+    {
+        // En lånt hannkatt fra et annet oppdrett.
+        var borrowed = await _cats.CreateAsync(NewCat("Lånt", SexEnum.Male) with { Role = CatRole.External }, CancellationToken.None);
+
+        var litter = await _handler.CreateAsync(NewLitter() with { FatherId = borrowed.Id }, CancellationToken.None);
+
+        Assert.AreEqual(borrowed.Id, litter.FatherId);
+
+        // Kullet har navnet hans med seg, for han er ikke med i lista over våre katter.
+        var fetched = await _handler.GetAsync(litter.Id, CancellationToken.None);
+        Assert.IsNotNull(fetched);
+        Assert.IsNotNull(fetched.Father);
+        Assert.AreEqual("Lånt", fetched.Father.Name);
+        Assert.IsTrue(fetched.Father.IsExternal);
+        Assert.IsNotNull(fetched.Mother);
+        Assert.IsFalse(fetched.Mother.IsExternal);
+    }
+
+    [TestMethod]
+    public async Task Litter_shows_parent_as_missing_when_cat_is_deleted()
+    {
+        var litter = await _handler.CreateAsync(NewLitter(), CancellationToken.None);
+        Assert.AreEqual(_father.Name, litter.Father?.Name);
+
+        await _cats.DeleteAsync(_father.Id, CancellationToken.None);
+
+        var fetched = await _handler.GetAsync(litter.Id, CancellationToken.None);
+        Assert.IsNotNull(fetched);
+        Assert.IsNull(fetched.Father);
+        Assert.AreEqual(_father.Id, fetched.FatherId); // id-en er fortsatt der
     }
 
     [TestMethod]

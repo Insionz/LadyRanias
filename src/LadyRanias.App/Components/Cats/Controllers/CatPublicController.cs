@@ -10,8 +10,8 @@ public sealed class CatPublicController(ICatHandler handler) : ControllerBase
     [HttpGet]
     public Task<IReadOnlyList<CatDto>> GetAll(CancellationToken ct)
     {
-        var allCats = handler.GetAllAsync(ct);
-        return allCats;
+        // Bare våre egne katter. Kattungene vises i kullet, og eksterne hannkatter hører ikke hjemme her.
+        return handler.GetOwnAsync(ct);
     }
 
     [HttpGet("{id:guid}")]
