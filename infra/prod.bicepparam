@@ -34,3 +34,7 @@ param emailSenderAddress = 'DoNotReply@33e68950-6cce-46dc-9af3-35a8b7bb7f78.azur
 param entraClientSecret = readEnvironmentVariable('ENTRA_CLIENT_SECRET', '')
 param emailConnectionString = readEnvironmentVariable('EMAIL_CONNECTION_STRING', '')
 param emailNotifyAddress = 'kontakt@ladyranias.no'
+
+// Varsler (steg 13, del 3): e-post når siden er nede, ved serverfeil og når et kontaktvarsel feiler.
+param alertEmail = 'insionz@outlook.com'
+param monthlyBudget = 300
