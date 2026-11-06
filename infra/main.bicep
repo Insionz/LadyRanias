@@ -195,6 +195,31 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'Email__SenderAddress', value: emailSenderAddress }
             { name: 'Email__NotifyAddress', value: emailNotifyAddress }
           ]
+          // Azure spør appen jevnlig om den har det bra (steg 13).
+          // Startup:   venter til appen har startet før de andre slår inn (opptil 10 × 3 s = 30 s).
+          // Liveness:  svarer ikke /health/live 3 ganger på rad, startes containeren på nytt.
+          // Readiness: svarer ikke /health/ready (Table Storage), får containeren ikke trafikk før den svarer igjen.
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: { path: '/health/live', port: 8080 }
+              periodSeconds: 3
+              failureThreshold: 10
+            }
+            {
+              type: 'Liveness'
+              httpGet: { path: '/health/live', port: 8080 }
+              periodSeconds: 30
+              failureThreshold: 3
+            }
+            {
+              type: 'Readiness'
+              httpGet: { path: '/health/ready', port: 8080 }
+              periodSeconds: 15
+              timeoutSeconds: 5
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
