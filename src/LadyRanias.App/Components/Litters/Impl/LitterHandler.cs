@@ -35,8 +35,8 @@ internal sealed class LitterHandler(
 
     public async Task<LitterDto> CreateAsync(CreateLitterDto newLitter, CancellationToken cancellationToken)
     {
-        await ValidateParentAsync(newLitter.MotherId, SexEnum.Female, "MotherId", cancellationToken);
-        await ValidateParentAsync(newLitter.FatherId, SexEnum.Male, "FatherId", cancellationToken);
+        var mother = await ValidateParentAsync(newLitter.MotherId, SexEnum.Female, "MotherId", cancellationToken);
+        var father = await ValidateParentAsync(newLitter.FatherId, SexEnum.Male, "FatherId", cancellationToken);
 
         var litter = new LitterEntity
         {
@@ -53,7 +53,7 @@ internal sealed class LitterHandler(
 
         await litters.SaveAsync(litter, cancellationToken);
 
-        return ToLitterDto(litter, []);
+        return ToLitterDto(litter, [], mother, father);
     }
 
     public async Task<LitterDto?> MarkBornAsync(Guid id, MarkBornDto born, CancellationToken cancellationToken)
@@ -114,6 +114,13 @@ internal sealed class LitterHandler(
             throw new InvalidStateException("Kittens can only be added to a litter that is born");
         }
 
+        // Kattungen får rasen til moren. Maine Coon og Hellig Birma krysses ikke, så det er nok å se på henne.
+        var mother = await cats.GetAsync(litter.MotherId, cancellationToken);
+        if (mother == null || mother.Breed == Breed.Unknown)
+        {
+            throw new ValidationException("The mother has no breed. Set the breed on the mother first.");
+        }
+
         // Kattungen får fødselsdatoen til kullet. Cats sjekker kjønn og dato, som for alle andre katter.
         var kitten = await cats.CreateKittenAsync(litterId, new CreateCatDto
         {
@@ -121,6 +128,7 @@ internal sealed class LitterHandler(
             Sex = newKitten.Sex,
             BirthDate = litter.BirthDate.Value,
             Description = newKitten.Description,
+            Breed = mother.Breed,
         }, cancellationToken);
 
         return ToKittenDto(kitten, litterId);
@@ -161,7 +169,7 @@ internal sealed class LitterHandler(
         return cat?.LitterId == litterId ? cat : null;
     }
 
-    private async Task ValidateParentAsync(Guid catId, SexEnum expectedSex, string field, CancellationToken cancellationToken)
+    private async Task<CatDto> ValidateParentAsync(Guid catId, SexEnum expectedSex, string field, CancellationToken cancellationToken)
     {
         var cat = await cats.GetAsync(catId, cancellationToken);
 
@@ -175,21 +183,26 @@ internal sealed class LitterHandler(
             throw new ValidationException($"{field}: the cat must be {expectedSex.ToString().ToLowerInvariant()}");
         }
 
-        // En kattunge kan ikke bli forelder. (Del 2: en beholdt kattunge som er blitt avlskatt, kan.)
-        if (cat.LitterId != null)
+        // En kattunge kan ikke bli forelder. En beholdt kattunge som er blitt avlskatt (Role = Breeding), kan.
+        // En ekstern katt (lånt hannkatt fra et annet oppdrett) kan også.
+        if (cat.Role == CatRole.Kitten)
         {
             throw new ValidationException($"{field}: the cat is a kitten");
         }
+
+        return cat;
     }
 
     private async Task<LitterDto> ToDtoWithKittensAsync(LitterEntity litter, CancellationToken cancellationToken)
     {
         var kittensInLitter = await cats.GetByLitterAsync(litter.Id, cancellationToken);
+        var mother = await cats.GetAsync(litter.MotherId, cancellationToken);
+        var father = await cats.GetAsync(litter.FatherId, cancellationToken);
 
-        return ToLitterDto(litter, [.. kittensInLitter.Select(kitten => ToKittenDto(kitten, litter.Id))]);
+        return ToLitterDto(litter, [.. kittensInLitter.Select(kitten => ToKittenDto(kitten, litter.Id))], mother, father);
     }
 
-    private static LitterDto ToLitterDto(LitterEntity litter, IReadOnlyList<KittenDto> kittensInLitter)
+    private static LitterDto ToLitterDto(LitterEntity litter, IReadOnlyList<KittenDto> kittensInLitter, CatDto? mother, CatDto? father)
     {
         return new LitterDto
         {
@@ -203,6 +216,21 @@ internal sealed class LitterHandler(
             Description = litter.Description,
             CreatedAt = litter.CreatedAt,
             Kittens = kittensInLitter,
+            Mother = ToParentDto(mother),
+            Father = ToParentDto(father),
+        };
+    }
+
+    private static ParentDto? ToParentDto(CatDto? cat)
+    {
+        return cat == null ? null : new ParentDto
+        {
+            Id = cat.Id,
+            Name = cat.Name,
+            Breed = cat.Breed,
+            EmsCode = cat.EmsCode,
+            Titles = cat.Titles,
+            IsExternal = cat.Role == CatRole.External,
         };
     }
 
@@ -217,6 +245,9 @@ internal sealed class LitterHandler(
             Status = kitten.SaleStatus ?? KittenStatus.Available,
             Description = kitten.Description,
             CreatedAt = kitten.CreatedAt,
+            Breed = kitten.Breed,
+            EmsCode = kitten.EmsCode,
+            Color = kitten.Color,
         };
     }
 }

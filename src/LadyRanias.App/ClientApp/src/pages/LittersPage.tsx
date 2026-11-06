@@ -2,34 +2,13 @@ import { Anchor, Card, Divider, Group, SimpleGrid, Stack, Text, Title } from '@m
 import { Link } from 'react-router'
 import { useApi } from '../api/api'
 import KittenCard from '../components/KittenCard'
+import Parents from '../components/Parents'
 import { ErrorMessage, Loading } from '../components/Status'
-import type { Cat, Litter } from '../types/types'
+import type { Litter } from '../types/types'
 import { ageLabel, formatDate, formatMonth } from '../utils/format'
 import { contactLink } from '../utils/contactLink'
 
-/** Mor og far som lenker. Er katten slettet, står det bare «ukjent». */
-function Parents({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }) {
-  const parent = (id: string) => {
-    const cat = cats.get(id)
-    return cat ? (
-      <Anchor component={Link} to={`/katter/${cat.id}`}>
-        {cat.name}
-      </Anchor>
-    ) : (
-      <Text span c="dimmed">
-        ukjent
-      </Text>
-    )
-  }
-
-  return (
-    <Text size="sm">
-      Mor: {parent(litter.motherId)} · Far: {parent(litter.fatherId)}
-    </Text>
-  )
-}
-
-function PlannedLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }) {
+function PlannedLitter({ litter }: { litter: Litter }) {
   return (
     <Card withBorder radius="md" padding="lg" className="fade-up">
       <Group justify="space-between" align="baseline" mb="xs">
@@ -38,7 +17,7 @@ function PlannedLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat
         </Title>
         <Text c="dimmed">{litter.expectedDate ? `Ventes ${formatMonth(litter.expectedDate)}` : 'Dato ikke satt'}</Text>
       </Group>
-      <Parents litter={litter} cats={cats} />
+      <Parents litter={litter} />
       {litter.description && (
         <Text mt="sm" style={{ whiteSpace: 'pre-line' }}>
           {litter.description}
@@ -51,7 +30,7 @@ function PlannedLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat
   )
 }
 
-function BornLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }) {
+function BornLitter({ litter }: { litter: Litter }) {
   const available = litter.kittens.filter(k => k.status === 'Available').length
 
   return (
@@ -66,7 +45,7 @@ function BornLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }
           </Text>
         )}
       </Group>
-      <Parents litter={litter} cats={cats} />
+      <Parents litter={litter} />
       {litter.description && <Text style={{ whiteSpace: 'pre-line' }}>{litter.description}</Text>}
 
       {litter.kittens.length === 0 ? (
@@ -88,14 +67,12 @@ function BornLitter({ litter, cats }: { litter: Litter; cats: Map<string, Cat> }
 }
 
 export default function LittersPage() {
+  // Mor og far følger med i kullet, også en ekstern far som ikke står blant kattene våre.
   const litters = useApi<Litter[]>('/api/public/litters')
-  // Kattene hentes for å vise navnene på mor og far.
-  const cats = useApi<Cat[]>('/api/public/cats')
 
-  if (litters.loading || cats.loading) return <Loading />
+  if (litters.loading) return <Loading />
   if (litters.error) return <ErrorMessage message={litters.error} />
 
-  const catsById = new Map((cats.data ?? []).map(cat => [cat.id, cat]))
   const all = litters.data ?? []
   const planned = all.filter(l => l.status === 'Planned')
   const born = all.filter(l => l.status === 'Born')
@@ -117,7 +94,7 @@ export default function LittersPage() {
           </Title>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
             {planned.map(litter => (
-              <PlannedLitter key={litter.id} litter={litter} cats={catsById} />
+              <PlannedLitter key={litter.id} litter={litter} />
             ))}
           </SimpleGrid>
         </Stack>
@@ -126,7 +103,7 @@ export default function LittersPage() {
       {born.map((litter, index) => (
         <Stack key={litter.id} gap="md">
           {(index > 0 || planned.length > 0) && <Divider />}
-          <BornLitter litter={litter} cats={catsById} />
+          <BornLitter litter={litter} />
         </Stack>
       ))}
     </Stack>

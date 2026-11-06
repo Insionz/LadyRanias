@@ -2,8 +2,11 @@ namespace LadyRanias.App.Components.Cats.Api;
 
 public interface ICatHandler
 {
-    /// <summary>Alle katter som ikke er kattunger. Kattungene hentes per kull med GetByLitterAsync.</summary>
+    /// <summary>Alle katter som ikke er kattunger, også eksterne (admin). Kattungene hentes per kull med GetByLitterAsync.</summary>
     Task<IReadOnlyList<CatDto>> GetAllAsync(CancellationToken cancellationToken);
+
+    /// <summary>Våre egne katter: i avl og pensjonerte. Det den offentlige siden viser.</summary>
+    Task<IReadOnlyList<CatDto>> GetOwnAsync(CancellationToken cancellationToken);
 
     /// <summary>Henter alle katter, også kattunger.</summary>
     Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken);
@@ -18,7 +21,7 @@ public interface ICatHandler
     /// <summary>Kattungene i et kull, eldste først (i den rekkefølgen de ble lagt inn).</summary>
     Task<IReadOnlyList<CatDto>> GetByLitterAsync(Guid litterId, CancellationToken cancellationToken);
 
-    /// <summary>Lager en kattunge: en vanlig katt med LitterId og SaleStatus = Available.</summary>
+    /// <summary>Lager en kattunge: en vanlig katt med Role = Kitten, LitterId og SaleStatus = Available. Role i DTO-en brukes ikke.</summary>
     Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken);
 
     /// <summary>

@@ -45,6 +45,7 @@ public sealed class AuthTests
 
     private static CreateCatDto NewCat() => new()
     {
+        Breed = Breed.MaineCoon,
         Name = "Mons",
         Sex = SexEnum.Male,
         BirthDate = new DateOnly(2024, 6, 1),

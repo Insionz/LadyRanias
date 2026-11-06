@@ -2,6 +2,12 @@
 
 export type Sex = 'Male' | 'Female' | 'Unknown'
 
+/** Unknown = katten ble lagt inn før rasen fantes, og mangler den. */
+export type Breed = 'Unknown' | 'MaineCoon' | 'SacredBirman'
+
+/** Kitten lages bare via kullet. External = fra et annet oppdrett, for eksempel en lånt hannkatt. */
+export type CatRole = 'Breeding' | 'Retired' | 'Kitten' | 'External'
+
 export type Cat = {
   id: string
   name: string
@@ -9,6 +15,13 @@ export type Cat = {
   birthDate: string // «2024-06-01»
   description: string
   createdAt: string
+  breed: Breed
+  role: CatRole
+  emsCode?: string | null // «MCO n 22»
+  color?: string | null
+  neutered: boolean
+  registrationNumber?: string | null
+  titles?: string | null
   litterId?: string | null // satt = født her, i dette kullet
   saleStatus?: KittenStatus | null // bare for kattunger
 }
@@ -32,6 +45,19 @@ export type Kitten = {
   status: KittenStatus
   description: string
   createdAt: string
+  breed: Breed
+  emsCode?: string | null
+  color?: string | null
+}
+
+/** Mor eller far, slik kullet viser dem. Eksterne katter (lånte hannkatter) lenkes ikke til. */
+export type Parent = {
+  id: string
+  name: string
+  breed: Breed
+  emsCode?: string | null
+  titles?: string | null
+  isExternal: boolean
 }
 
 export type Litter = {
@@ -45,6 +71,8 @@ export type Litter = {
   description: string
   createdAt: string
   kittens: Kitten[]
+  mother?: Parent | null // null hvis katten er slettet
+  father?: Parent | null
 }
 
 /** Svar fra api/auth/me */

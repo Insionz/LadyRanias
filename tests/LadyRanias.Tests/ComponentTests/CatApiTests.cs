@@ -55,6 +55,7 @@ public sealed class CatApiTests
     {
         var newCat = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Mons",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 6, 1),
@@ -86,6 +87,7 @@ public sealed class CatApiTests
     {
         var newCat = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 6, 1),
@@ -102,6 +104,7 @@ public sealed class CatApiTests
     {
         var newCat = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Mons",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 6, 1),
@@ -134,6 +137,7 @@ public sealed class CatApiTests
 
         var catBornTomorrow = new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Test",
             Sex = SexEnum.Male,
             BirthDate = birthDateTomorrow,
@@ -151,6 +155,7 @@ public sealed class CatApiTests
     {
         var createResponse = await _httpClient.PostAsJsonAsync("api/admin/cats", new CreateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Mons",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 6, 1),
@@ -161,6 +166,7 @@ public sealed class CatApiTests
 
         var updateResponse = await _httpClient.PutAsJsonAsync($"api/admin/cats/{created.Id}", new UpdateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Mons Store",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 5, 20),
@@ -180,6 +186,7 @@ public sealed class CatApiTests
     {
         var response = await _httpClient.PutAsJsonAsync($"api/admin/cats/{Guid.NewGuid()}", new UpdateCatDto
         {
+            Breed = Breed.MaineCoon,
             Name = "Ingen",
             Sex = SexEnum.Male,
             BirthDate = new DateOnly(2024, 5, 20),

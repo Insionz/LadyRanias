@@ -2,7 +2,7 @@ import { Anchor, Badge, Card, Group, Image, Text } from '@mantine/core'
 import { Link } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import type { CatImage, Kitten } from '../types/types'
-import { kittenStatusBadge, sexLabel } from '../utils/format'
+import { breedLine, kittenStatusBadge, sexLabel } from '../utils/format'
 import { contactLink } from '../utils/contactLink'
 
 export default function KittenCard({ kitten }: { kitten: Kitten }) {
@@ -21,13 +21,14 @@ export default function KittenCard({ kitten }: { kitten: Kitten }) {
         <Image src={src} fallbackSrc="/cat-placeholder.svg" h={160} alt={kitten.name} loading="lazy" />
       </Card.Section>
       <Group justify="space-between" wrap="nowrap" mb={4}>
-        <Text fw={600} truncate>
+        {/* En kattunge er en katt, så den har sin egen side med alle bildene. */}
+        <Anchor component={Link} to={`/katter/${kitten.id}`} fw={600} c="inherit" truncate>
           {kitten.name}
-        </Text>
+        </Anchor>
         <Badge color={badge.color}>{badge.label}</Badge>
       </Group>
       <Text size="sm" c="dimmed" mb={kitten.description ? 'xs' : 0}>
-        {sexLabel(kitten.sex)}
+        {[sexLabel(kitten.sex), breedLine(kitten.breed, kitten.color, kitten.emsCode)].filter(Boolean).join(' · ')}
       </Text>
       {kitten.description && <Text size="sm">{kitten.description}</Text>}
       {kitten.status === 'Available' && (

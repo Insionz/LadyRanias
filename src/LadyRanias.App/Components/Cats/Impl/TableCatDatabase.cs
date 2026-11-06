@@ -68,6 +68,13 @@ internal sealed class TableCatDatabase : ICatDatabase
             CreatedAt = entity.CreatedAt,
             LitterId = entity.LitterId,
             SaleStatus = entity.SaleStatus?.ToString(),
+            Breed = entity.Breed.ToString(),
+            Role = entity.Role.ToString(),
+            EmsCode = entity.EmsCode,
+            Color = entity.Color,
+            Neutered = entity.Neutered,
+            RegistrationNumber = entity.RegistrationNumber,
+            Titles = entity.Titles,
         };
     }
 
@@ -83,6 +90,16 @@ internal sealed class TableCatDatabase : ICatDatabase
             CreatedAt = cat.CreatedAt,
             LitterId = cat.LitterId,
             SaleStatus = cat.SaleStatus == null ? null : Enum.Parse<KittenStatus>(cat.SaleStatus),
+
+            // Katter lagret før steg 14 del 2 mangler disse kolonnene.
+            // Rasen blir Unknown (mamma setter den i admin), og rollen gjettes ut fra om katten er født i et kull.
+            Breed = cat.Breed == null ? Breed.Unknown : Enum.Parse<Breed>(cat.Breed),
+            Role = cat.Role != null ? Enum.Parse<CatRole>(cat.Role) : cat.LitterId != null ? CatRole.Kitten : CatRole.Breeding,
+            EmsCode = cat.EmsCode,
+            Color = cat.Color,
+            Neutered = cat.Neutered ?? false,
+            RegistrationNumber = cat.RegistrationNumber,
+            Titles = cat.Titles,
         };
     }
 }

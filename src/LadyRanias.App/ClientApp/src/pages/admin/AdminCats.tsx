@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Alert, Button, Group, Modal, Table, Text } from '@mantine/core'
+import { Alert, Badge, Button, Group, Modal, Table, Text } from '@mantine/core'
 import { send, useApi } from '../../api/api'
 import ConfirmButton from '../../components/ConfirmButton'
 import { ErrorMessage, Loading } from '../../components/Status'
 import type { Cat } from '../../types/types'
-import { formatDate, sexLabel } from '../../utils/format'
+import { breedLabel, formatDate, roleLabel, sexLabel } from '../../utils/format'
 import CatForm from './CatForm'
 import CatImagesEditor from './CatImagesEditor'
 
@@ -25,6 +25,8 @@ export default function AdminCats() {
     }
   }
 
+  const missingBreed = cats.data?.filter(cat => cat.breed === 'Unknown').length ?? 0
+
   if (cats.loading) return <Loading />
   if (cats.error) return <ErrorMessage message={cats.error} />
 
@@ -35,17 +37,25 @@ export default function AdminCats() {
         <Button onClick={() => setEditing('new')}>Ny katt</Button>
       </Group>
 
+      {missingBreed > 0 && (
+        <Alert color="yellow" mb="md">
+          {missingBreed === 1 ? 'Én katt mangler rase.' : `${missingBreed} katter mangler rase.`} Trykk «Rediger» og velg rase.
+        </Alert>
+      )}
+
       {error && (
         <Alert color="red" mb="md">
           {error}
         </Alert>
       )}
 
-      <Table.ScrollContainer minWidth={560}>
+      <Table.ScrollContainer minWidth={720}>
         <Table striped highlightOnHover verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Navn</Table.Th>
+              <Table.Th>Rase</Table.Th>
+              <Table.Th>Rolle</Table.Th>
               <Table.Th>Kjønn</Table.Th>
               <Table.Th>Født</Table.Th>
               <Table.Th />
@@ -55,6 +65,16 @@ export default function AdminCats() {
             {cats.data?.map(cat => (
               <Table.Tr key={cat.id}>
                 <Table.Td fw={600}>{cat.name}</Table.Td>
+                <Table.Td>
+                  {cat.breed === 'Unknown' ? (
+                    <Badge color="yellow" variant="light">
+                      {breedLabel(cat.breed)}
+                    </Badge>
+                  ) : (
+                    breedLabel(cat.breed)
+                  )}
+                </Table.Td>
+                <Table.Td>{roleLabel(cat.role)}</Table.Td>
                 <Table.Td>{sexLabel(cat.sex)}</Table.Td>
                 <Table.Td>{formatDate(cat.birthDate)}</Table.Td>
                 <Table.Td>

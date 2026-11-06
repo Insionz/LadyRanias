@@ -1,4 +1,4 @@
-import type { ContactStatus, KittenStatus, Sex } from '../types/types'
+import type { Breed, CatRole, ContactStatus, KittenStatus, Sex } from '../types/types'
 
 export function sexLabel(sex: Sex) {
   switch (sex) {
@@ -8,6 +8,52 @@ export function sexLabel(sex: Sex) {
       return 'Hannkatt'
     default:
       return 'Ukjent kjønn'
+  }
+}
+
+export function breedLabel(breed: Breed) {
+  switch (breed) {
+    case 'MaineCoon':
+      return 'Maine Coon'
+    case 'SacredBirman':
+      return 'Hellig Birma'
+    default:
+      return 'Rase mangler'
+  }
+}
+
+/** Rasekoden i EMS. En EMS-kode begynner med denne: «MCO n 22». */
+export function emsBreedCode(breed: Breed) {
+  switch (breed) {
+    case 'MaineCoon':
+      return 'MCO'
+    case 'SacredBirman':
+      return 'SBI'
+    default:
+      return ''
+  }
+}
+
+/** «IC Kiara»: titlene står foran navnet, som på en stamtavle. */
+export function nameWithTitles(name: string, titles?: string | null) {
+  return titles ? `${titles} ${name}` : name
+}
+
+/** «Maine Coon · svart tabby · MCO n 22». Det som finnes, i den rekkefølgen. */
+export function breedLine(breed: Breed, color?: string | null, emsCode?: string | null) {
+  return [breed === 'Unknown' ? null : breedLabel(breed), color, emsCode].filter(Boolean).join(' · ')
+}
+
+export function roleLabel(role: CatRole) {
+  switch (role) {
+    case 'Breeding':
+      return 'I avl'
+    case 'Retired':
+      return 'Pensjonert'
+    case 'Kitten':
+      return 'Kattunge'
+    case 'External':
+      return 'Ekstern'
   }
 }
 
