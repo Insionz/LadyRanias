@@ -125,7 +125,7 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                         <Table.Tr key={kitten.id}>
                           <Table.Td fw={600}>
                             {kitten.name}
-                            {kitten.deathDate && (
+                            {kitten.deceased && (
                               <Badge ml="xs" variant="outline" color="gray">
                                 Død
                               </Badge>

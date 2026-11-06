@@ -38,12 +38,36 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [neutered, setNeutered] = useState(cat?.neutered ?? false)
   const [registrationNumber, setRegistrationNumber] = useState(cat?.registrationNumber ?? '')
   const [titles, setTitles] = useState(cat?.titles ?? '')
+  const [deceased, setDeceased] = useState(cat?.deceased ?? false)
   const [deathDate, setDeathDate] = useState(cat?.deathDate ?? '')
+  const [roleNotice, setRoleNotice] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const roles = roleOptions(cat)
   const isKitten = role === 'Kitten'
+
+  // En kastrert katt kan ikke være i avl (samme regel som i backend, CatHandler.ValidateNeutered).
+  // I stedet for en feilmelding endrer vi det andre feltet, for det er nesten alltid det som er ment.
+  function changeNeutered(checked: boolean) {
+    setNeutered(checked)
+    if (checked && role === 'Breeding' && roles.includes('Retired')) {
+      setRole('Retired')
+      setRoleNotice('Rollen er endret til «Pensjonert», for en kastrert katt kan ikke være i avl.')
+    } else {
+      setRoleNotice(null)
+    }
+  }
+
+  function changeRole(newRole: CatRole) {
+    setRole(newRole)
+    if (newRole === 'Breeding' && neutered) {
+      setNeutered(false)
+      setRoleNotice('«Kastrert» er fjernet, for en katt i avl kan ikke være kastrert.')
+    } else {
+      setRoleNotice(null)
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -63,7 +87,9 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
       neutered,
       registrationNumber,
       titles,
-      deathDate: deathDate || null,
+      deceased,
+      // Ikke død: ingen dato, selv om feltet hadde en fra før.
+      deathDate: deceased && deathDate ? deathDate : null,
     }
     try {
       if (cat) {
@@ -102,7 +128,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
             disabled={roles.length === 1}
             description={isKitten && roles.length === 1 ? 'Sett kattungen til «Blir hos oss» for å gjøre den voksen.' : undefined}
             value={role}
-            onChange={value => value && setRole(value as CatRole)}
+            onChange={value => value && changeRole(value as CatRole)}
             data={roles.map(r => ({ value: r, label: roleLabel(r) }))}
           />
           <Select
@@ -146,12 +172,25 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
           <TextInput label="Titler" placeholder="For eksempel «IC»" value={titles} onChange={e => setTitles(e.currentTarget.value)} />
         </SimpleGrid>
         <Group align="flex-end">
-          <Checkbox label="Kastrert" checked={neutered} onChange={e => setNeutered(e.currentTarget.checked)} mb={8} />
-          {/* Bare for katter som finnes. En ny katt lever. */}
-          {cat && (
+          <Checkbox
+            label="Kastrert"
+            description={roleNotice ?? undefined}
+            checked={neutered}
+            onChange={e => changeNeutered(e.currentTarget.checked)}
+            mb={8}
+          />
+          {/* Også for nye katter: mange av de gamle kattene legges inn etter at de er døde. */}
+          <Checkbox
+            label="Død"
+            description="Katten flyttes til minnesiden"
+            checked={deceased}
+            onChange={e => setDeceased(e.currentTarget.checked)}
+            mb={8}
+          />
+          {deceased && (
             <TextInput
               label="Dødsdato"
-              description="Katten flyttes til minnesiden. La stå tom så lenge den lever."
+              description="La stå tom hvis du ikke husker den"
               type="date"
               min={birthDate || undefined}
               max={today}

@@ -61,6 +61,7 @@ public sealed record KittenDto
     public string? Color { get; set; }
 
     /// <summary>En kattunge som ikke klarte seg. Den offentlige kullsiden viser den ikke.</summary>
+    public bool Deceased { get; set; }
     public DateOnly? DeathDate { get; set; }
 }
 

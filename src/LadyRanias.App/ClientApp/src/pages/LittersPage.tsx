@@ -33,7 +33,7 @@ function PlannedLitter({ litter }: { litter: Litter }) {
 
 function BornLitter({ litter }: { litter: Litter }) {
   // Kattunger som ikke klarte seg, vises ikke her. Admin ser dem fortsatt.
-  const kittens = litter.kittens.filter(k => !k.deathDate)
+  const kittens = litter.kittens.filter(k => !k.deceased)
   const available = kittens.filter(k => k.status === 'Available').length
 
   return (
