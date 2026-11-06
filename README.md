@@ -38,7 +38,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | ✅ |
 | 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
 | 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
-| 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | Pågår |
+| 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | ✅ |
+| 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | Planlagt |
 
 ## Utsatt til senere
 
@@ -882,14 +883,14 @@ Azure må vite to ting om appen:
   for hvis Storage er nede, hjelper det ikke å starte appen på nytt. Det gjør det bare verre.
 - **Er den klar?** (*readiness*) Hvis nei, ikke send besøkende dit ennå. Her sjekker vi at appen faktisk når Storage.
 
-- [ ] `builder.Services.AddHealthChecks()` med en sjekk som heter `storage` og er merket `ready`. Den spør Table Storage om én tabell
+- [x] `builder.Services.AddHealthChecks()` med en sjekk som heter `storage` og er merket `ready`. Den spør Table Storage om én tabell
       (`TableServiceClient.QueryAsync(maxPerPage: 1)`), så vi vet at managed identity og nettverket virker.
-- [ ] `app.MapHealthChecks("/health/live", …)`: ingen sjekker, bare «prosessen svarer» (`Predicate = _ => false`)
-- [ ] `app.MapHealthChecks("/health/ready", …)`: bare sjekkene merket `ready`
-- [ ] **Fallback-ruten** må ikke ta `/health`. `/health/live` har ingen filendelse, så uten et unntak ville den gitt `index.html`.
+- [x] `app.MapHealthChecks("/health/live", …)`: ingen sjekker, bare «prosessen svarer» (`Predicate = _ => false`)
+- [x] `app.MapHealthChecks("/health/ready", …)`: bare sjekkene merket `ready`
+- [x] **Fallback-ruten** må ikke ta `/health`. `/health/live` har ingen filendelse, så uten et unntak ville den gitt `index.html`.
       Legg `health/` til i regex-en, ved siden av `api/`.
-- [ ] Tester: `/health/live` gir 200, `/health/ready` gir 200 (komponenttest) og 503 når sjekken feiler (enhetstest av sjekken)
-- [ ] **Bicep:** `probes` på containeren: `Liveness` mot `/health/live`, `Readiness` mot `/health/ready`, og `Startup` mot
+- [x] Tester: `/health/live` gir 200, `/health/ready` gir 200 (komponenttest) og 503 når sjekken feiler (enhetstest av sjekken)
+- [x] **Bicep:** `probes` på containeren: `Liveness` mot `/health/live`, `Readiness` mot `/health/ready`, og `Startup` mot
       `/health/live`, med god tid til oppstart
 
 ### Del 2: Application Insights med OpenTelemetry
@@ -900,25 +901,31 @@ anbefalte måte å sende den til Azure er pakken **`Azure.Monitor.OpenTelemetry.
 - alle `ILogger`-meldinger, også de fra bakgrunnsjobben
 - unntak, med hele stakken
 
-- [ ] Pakken `Azure.Monitor.OpenTelemetry.AspNetCore`
-- [ ] `builder.Services.AddOpenTelemetry().UseAzureMonitor()`, **bare** når `APPLICATIONINSIGHTS_CONNECTION_STRING` er satt.
+- [x] Pakken `Azure.Monitor.OpenTelemetry.AspNetCore`
+- [x] `builder.Services.AddOpenTelemetry().UseAzureMonitor()`, **bare** når `APPLICATIONINSIGHTS_CONNECTION_STRING` er satt.
       Lokalt, i tester og i CI sendes ingenting.
-- [ ] **Bicep:** én **Application Insights** (`appi-ladyranias`) som lagrer i den samme `log-ladyranias`, og
-      `APPLICATIONINSIGHTS_CONNECTION_STRING` som miljøvariabel på appen
-- [ ] Felles for test og prod, men hver app har sitt eget navn (`cloud_RoleName`), så de kan skilles i grafene.
-      Sett `OTEL_SERVICE_NAME` til `ladyranias-test` og `ladyranias-prod`.
+- [x] **Bicep:** én **Application Insights** per miljø (`appi-ladyranias-test` og `appi-ladyranias-prod`), begge lagrer i
+      den samme `log-ladyranias`. Koblingsstrengen er en secret på appen, lest som `APPLICATIONINSIGHTS_CONNECTION_STRING`.
+      *Endret fra planen:* egne ressurser per miljø i stedet for én felles, så testtrafikk ikke blander seg med ekte besøk.
+- [x] `OTEL_SERVICE_NAME` er `ladyranias-test` og `ladyranias-prod` (vises som `cloud_RoleName`)
+- [x] Kall til `/health/...` filtreres bort (`AspNetCoreTraceInstrumentationOptions.Filter`). Probene spør flere ganger i
+      minuttet og ville druknet de ekte besøkene.
 
 **Personvern:** Application Insights lagrer adresser og IP-adresser. IP-adressen anonymiseres som standard (siste del fjernes).
 Ikke logg innholdet i kontaktmeldinger eller e-postadresser. Logg id-er, slik vi allerede gjør.
 
 ### Del 3: Varsler
-- [ ] **Action group** `ag-ladyranias`: hvem som får beskjed, og hvordan. E-post til deg.
-- [ ] **Tilgjengelighet:** en *standard availability test* i Application Insights som henter
+- [x] **Action group** `ag-ladyranias-prod`: hvem som får beskjed, og hvordan. E-post til deg.
+- [x] **Tilgjengelighet:** en *standard availability test* i Application Insights som henter
       `https://www.ladyranias.no/health/ready` hvert 15. minutt fra to steder. Feiler den fra begge, får du e-post.
-- [ ] **Feil i appen:** et varsel når det kommer mer enn 5 svar med 5xx i løpet av 15 minutter
-- [ ] **Poison-køen:** et loggvarsel når bakgrunnsjobben skriver «flyttet til poison-køen». Da har et e-postvarsel til
+- [x] **Feil i appen:** et varsel når det kommer minst ett svar med 5xx i løpet av 15 minutter (siden har lite trafikk,
+      så én feil er verdt å se på)
+- [x] **Poison-køen:** et loggvarsel når bakgrunnsjobben skriver «flyttet til poison-køen». Da har et e-postvarsel til
       moren din feilet fem ganger, og du må se på det.
-- [ ] Alt i Bicep, så det kan gjenskapes
+- [x] Tilgjengelighetstesten sjekker også at sertifikatet er gyldig i minst 7 dager til
+- [x] **Budsjett** for ressursgruppen (`monthlyBudget`), e-post ved 80 % brukt og 100 % forventet
+- [x] Alt i Bicep, så det kan gjenskapes. Varslene lages bare der `alertEmail` er satt, altså i prod.
+      Test sover når ingen bruker den, og en tilgjengelighetstest ville holdt den våken.
 
 **Hva koster det?** Application Insights og Log Analytics er gratis opp til 5 GB i måneden, og denne appen bruker en
 liten brøkdel av det. Tilgjengelighetstester koster per kjøring. Hvert 15. minutt fra to steder blir omtrent 6 000 kjøringer
@@ -931,9 +938,86 @@ i måneden, noen få titalls kroner. Sjekk gjerne prisen i Azure-priskalkulatore
 - [ ] Når du stopper prod-appen (**Container App → Stop**), kommer det en e-post innen ca. 15 minutter. Start den igjen etterpå.
 - [ ] Alle tester er grønne, og alt er i Bicep
 
+**Lærdom fra utrullingen**
+- Kode først, Bicep etterpå. Probene mot `/health/...` ga 404 og omstart om og om igjen hvis de kom før koden.
+- Hent taggen som kjører **rett før** `what-if` og `create`, og send den med (`-p imageTag=...`). Ellers bytter Bicep imaget
+  til `main` eller til en gammel versjon:
+  ```powershell
+  $tag = (az containerapp show -n ca-ladyranias-prod -g rg-ladyranias --query "properties.template.containers[0].image" -o tsv).Split(':')[-1]
+  ```
+- Bare to hemmeligheter trengs i terminalen nå: `ENTRA_CLIENT_SECRET` og `EMAIL_CONNECTION_STRING`. Varslingsadressen står i
+  bicepparam-filene.
+
 **Det kan være lurt å slå opp:** «ASP.NET Core health checks», `IHealthCheck`, «liveness vs readiness»,
 «Container Apps health probes», «Azure Monitor OpenTelemetry Distro», «Application Insights standard availability test»,
 «Azure Monitor action group», «log search alert».
+
+---
+
+## Steg 14: Kattunger er katter, og katter får flere opplysninger
+
+**Mål:** Kattungene får bilder og alle de samme opplysningene som de voksne kattene, og hver katt har rase, farge og
+opplysningene fra stamtavlen. Mamma driver med **Maine Coon** (EMS `MCO`) og **Hellig Birma** (EMS `SBI`), og registrerer
+i Webkatten (NRR, som er med i FIFe). Derfor bruker vi **EMS-koder**.
+
+**Hvorfor nå?** Det finnes ingen kattunger i prod ennå. Da er det ingen data å flytte når `Kitten` forsvinner.
+
+### Modellen
+
+En kattunge er en katt som er født i et kull. Det er ikke en egen type.
+
+| Felt | Type | Merknad |
+|---|---|---|
+| `Breed` | `Breed` (enum) | `Unknown`, `MaineCoon`, `SacredBirman`. `Unknown` avvises ved lagring, som `SexEnum.Unknown`. Katter som finnes fra før, leses som `Unknown` til mamma har satt rasen. |
+| `Role` | `CatRole` (enum) | `Breeding`, `Retired`, `Kitten`, `External`. `External` er en lånt hannkatt fra et annet oppdrett: kan være far i et kull, men vises ikke blant mammas katter. |
+| `EmsCode` | `string?` | «MCO n 22», «SBI a 21». Valgfri, for Birma-kattunger fødes nesten hvite og fargen viser seg først etter noen uker. Er den fylt ut, må den begynne med riktig rasekode. |
+| `Color` | `string?` | Fargen i vanlige ord, til å lese |
+| `Neutered` | `bool` | Eget felt, for en pensjonert katt kan være kastrert eller ikke, og rollen sier noe annet |
+| `RegistrationNumber` | `string?` | Fra stamtavlen |
+| `Titles` | `string?` | Utstillingstitler, «IC», «GIC» |
+| `LitterId` | `Guid?` | Satt = født her, i dette kullet |
+| `SaleStatus` | `KittenStatus?` | Ledig, reservert, solgt, beholdt. Bare for kattunger. Enumen ligger i Cats, men reglene (`KittenStatusRules`) blir i Litters. |
+
+**Hvem eier hva?** Cats eier katten, også kattungene. Litters eier kullet og bruker `ICatHandler` for å lage, hente og
+slette kattungene, på samme måte som den allerede slår opp mor og far. Avhengigheten går fortsatt bare én vei:
+Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
+
+### Del 1: Slå sammen kattunger og katter
+- [x] `CatDto`, `CatEntity` og `CatTableEntity` får `LitterId` og `SaleStatus` (nullbare, så eksisterende katter leses som før)
+- [x] `ICatHandler` får `GetByLitterAsync`, `CreateKittenAsync` og `SetSaleStatusAsync`
+- [x] `GetAllAsync` viser ikke kattungene. De vises i kullet sitt.
+- [x] `KittenStatus` flyttes til `Cats.Api`. `KittenStatusRules` blir i Litters: Litters sjekker regelen, Cats lagrer.
+      Da trenger ikke Cats å vite noe om salg av kattunger, og `InvalidStateException` kan bli der den er.
+- [x] `LitterHandler.AddKittenAsync` lager en katt med `LitterId` og fødselsdatoen til kullet
+- [x] Endre eller slette en kattunge sjekker at den hører til kullet i adressen. Ellers kunne man endret en voksen katt,
+      eller en kattunge i et annet kull.
+- [x] En kattunge kan ikke være mor eller far i et kull
+- [x] Å slette et kull sletter kattungene med `ICatHandler.DeleteAsync`, så bildene deres ryddes også
+- [x] `KittenEntity`, `KittenTableEntity`, `IKittenDatabase` og de to implementasjonene er fjernet.
+      Tabellen `kittens` i Azure er tom og kan slettes for hånd (Storage → Tables).
+- [x] Rutene i API-et og `KittenDto` beholdes, så den offentlige kullsiden virker uendret
+- [x] Frontend: kattungene viser bilder, og admin har en «Bilder»-knapp per kattunge (samme `CatImagesEditor`, nå med `catId`)
+
+### Del 2: Nye opplysninger om katten
+- [ ] `Breed`, `Role`, `EmsCode`, `Color`, `Neutered`, `RegistrationNumber`, `Titles` i DTO-ene, entiteten og tabellen
+- [ ] Regler: rasen må være satt, EMS-koden må begynne med `MCO` eller `SBI` og passe med rasen
+- [ ] En ny kattunge får `Role = Kitten` og rasen til moren
+- [ ] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
+- [ ] Adminskjemaet får de nye feltene. Rasen og rollen som nedtrekkslister, kastrert som avkrysning.
+- [ ] Katter med `Breed = Unknown` merkes i admin, så mamma ser hvilke som mangler rase
+
+### Del 3: Den offentlige siden
+- [ ] «Våre katter» viser bare `Breeding` og `Retired`, gruppert per rase
+- [ ] Kattesiden viser rase, farge, EMS-kode, titler og foreldre (hvis katten er født her)
+- [ ] Kullsiden viser kattungene med bilde og ledig/reservert/solgt
+
+**Utsatt:** helsetester (HCM, SMA, HD for Maine Coon) med dato per katt, stamtavle over flere generasjoner.
+
+**Ferdig når**
+- [ ] Mamma kan legge inn et kull, legge til kattunger, laste opp bilder av dem og endre status
+- [ ] En beholdt kattunge kan bli avlskatt ved å endre rollen, uten å kopieres
+- [ ] Alle katter i prod har rase
+- [ ] Alle tester er grønne
 
 ---
 

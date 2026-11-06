@@ -34,7 +34,6 @@ public sealed class LitterApiTests
                 {
                     services.AddSingleton<ICatDatabase, InMemoryCatDatabase>();
                     services.AddSingleton<ILitterDatabase, InMemoryLitterDatabase>();
-                    services.AddSingleton<IKittenDatabase, InMemoryKittenDatabase>();
                     services.AddTestAuth();
                 }));
 

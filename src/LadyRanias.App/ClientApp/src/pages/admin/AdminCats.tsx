@@ -98,7 +98,7 @@ export default function AdminCats() {
       </Modal>
 
       <Modal opened={imagesFor !== null} onClose={() => setImagesFor(null)} title={`Bilder av ${imagesFor?.name ?? ''}`} size="lg">
-        {imagesFor && <CatImagesEditor key={imagesFor.id} cat={imagesFor} />}
+        {imagesFor && <CatImagesEditor key={imagesFor.id} catId={imagesFor.id} />}
       </Modal>
     </>
   )

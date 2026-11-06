@@ -1,4 +1,4 @@
-using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Litters.Impl;
 
 namespace LadyRanias.Tests.ServiceTests.LitterHandlerTests;

@@ -15,7 +15,6 @@ public sealed class LitterHandlerTests
 
     private readonly FakeTimeProvider _clock = new(Start);
     private readonly InMemoryLitterDatabase _litters = new();
-    private readonly InMemoryKittenDatabase _kittens = new();
     private readonly CatHandler _cats;
     private readonly LitterHandler _handler;
 
@@ -26,7 +25,7 @@ public sealed class LitterHandlerTests
     {
         // Ekte CatHandler med database i minnet. Da tester vi samspillet med Cats uten å lage en falsk ICatHandler.
         _cats = new CatHandler(new InMemoryCatDatabase(), _clock, []);
-        _handler = new LitterHandler(_litters, _kittens, _cats, _clock);
+        _handler = new LitterHandler(_litters, _cats, _clock);
     }
 
     [TestInitialize]
@@ -165,6 +164,65 @@ public sealed class LitterHandlerTests
     }
 
     [TestMethod]
+    public async Task Kitten_is_a_cat_with_the_birth_date_of_the_litter()
+    {
+        var litter = await CreateBornLitterAsync();
+
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten(), CancellationToken.None);
+        Assert.IsNotNull(kitten);
+
+        // Samme Id i Cats. Det er det som gjør at bildene virker for kattunger.
+        var cat = await _cats.GetAsync(kitten.Id, CancellationToken.None);
+        Assert.IsNotNull(cat);
+        Assert.AreEqual(litter.Id, cat.LitterId);
+        Assert.AreEqual(Today, cat.BirthDate);
+        Assert.AreEqual(KittenStatus.Available, cat.SaleStatus);
+
+        // Men den vises ikke blant de voksne kattene.
+        var adults = await _cats.GetAllAsync(CancellationToken.None);
+        Assert.IsFalse(adults.Any(c => c.Id == kitten.Id));
+    }
+
+    [TestMethod]
+    public async Task Kitten_cannot_be_parent_of_a_litter()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten("Ask") with { Sex = SexEnum.Male }, CancellationToken.None);
+        Assert.IsNotNull(kitten);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewLitter() with { FatherId = kitten.Id }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Kitten_in_another_litter_is_not_found()
+    {
+        var litterA = await CreateBornLitterAsync();
+        var litterB = await CreateBornLitterAsync();
+        var kitten = await _handler.AddKittenAsync(litterA.Id, NewKitten(), CancellationToken.None);
+        Assert.IsNotNull(kitten);
+
+        // Riktig kattunge, men feil kull i adressen.
+        Assert.IsNull(await _handler.ChangeKittenStatusAsync(litterB.Id, kitten.Id, new() { Status = KittenStatus.Sold }, CancellationToken.None));
+        Assert.IsFalse(await _handler.DeleteKittenAsync(litterB.Id, kitten.Id, CancellationToken.None));
+
+        // En voksen katt er heller ikke en kattunge i kullet.
+        Assert.IsNull(await _handler.ChangeKittenStatusAsync(litterA.Id, _mother.Id, new() { Status = KittenStatus.Sold }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Delete_kitten_removes_the_cat()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten(), CancellationToken.None);
+        Assert.IsNotNull(kitten);
+
+        Assert.IsTrue(await _handler.DeleteKittenAsync(litter.Id, kitten.Id, CancellationToken.None));
+
+        Assert.IsNull(await _cats.GetAsync(kitten.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task Add_kitten_with_unknown_sex_is_rejected()
     {
         var litter = await CreateBornLitterAsync();
@@ -237,7 +295,7 @@ public sealed class LitterHandlerTests
 
         Assert.IsTrue(deleted);
         Assert.IsNull(await _handler.GetAsync(litter.Id, CancellationToken.None));
-        Assert.HasCount(0, await _kittens.GetAllForLitterAsync(litter.Id, CancellationToken.None));
+        Assert.HasCount(0, await _cats.GetByLitterAsync(litter.Id, CancellationToken.None));
     }
 
     [TestMethod]

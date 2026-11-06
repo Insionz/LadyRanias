@@ -13,5 +13,9 @@ public record CatTableEntity : ITableEntity
     public required DateTime BirthDate { get; set; }
     public string Description { get; set; } = string.Empty;
     public required DateTimeOffset CreatedAt { get; set; }
+
+    // Nullbare, så katter som ble lagret før steg 14 (uten disse kolonnene) kan leses som før.
+    public Guid? LitterId { get; set; }
+    public string? SaleStatus { get; set; }
     public ETag ETag { get; set; } = ETag.All;
 }

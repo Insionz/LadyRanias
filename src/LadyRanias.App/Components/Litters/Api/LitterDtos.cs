@@ -9,14 +9,6 @@ public enum LitterStatus
     Born = 1,
 }
 
-public enum KittenStatus
-{
-    Available = 0,
-    Reserved = 1,
-    Sold = 2,
-    Kept = 3,
-}
-
 public sealed record LitterDto
 {
     public required Guid Id { get; set; }
@@ -33,6 +25,9 @@ public sealed record LitterDto
     public required IReadOnlyList<KittenDto> Kittens { get; set; }
 }
 
+/// <summary>
+/// En kattunge sett fra kullet. Bak ligger en vanlig katt i Cats (samme Id), så bildene virker som for andre katter.
+/// </summary>
 public sealed record KittenDto
 {
     public required Guid Id { get; set; }

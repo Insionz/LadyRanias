@@ -4,11 +4,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.Litters.Impl;
 
-// Litters bruker ICatHandler fra Cats/Api for å slå opp mor og far.
+// Litters bruker ICatHandler fra Cats/Api for å slå opp mor og far, og for kattungene.
+// En kattunge er en vanlig katt med LitterId. Cats lagrer den. Litters vet hvilket kull den hører til,
+// og hvilke statusendringer som er lov.
 // Avhengigheten går bare én vei: Cats vet ingenting om Litters.
 internal sealed class LitterHandler(
     ILitterDatabase litters,
-    IKittenDatabase kittens,
     ICatHandler cats,
     TimeProvider timeProvider) : ILitterHandler
 {
@@ -87,16 +88,17 @@ internal sealed class LitterHandler(
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         // Hent kattungene før kullet slettes, så vi vet hva som skal ryddes.
-        var kittensInLitter = await kittens.GetAllForLitterAsync(id, cancellationToken);
+        var kittensInLitter = await cats.GetByLitterAsync(id, cancellationToken);
 
         var deleted = await litters.DeleteAsync(id, cancellationToken);
         if (!deleted) return false;
 
         // Samme rekkefølge som når en katt slettes: hovedraden først, så oppryddingen.
+        // Kattungene slettes gjennom Cats, så bildene deres også ryddes bort (ICatDeletedListener).
         // CancellationToken.None: oppryddingen skal fullføres selv om forespørselen avbrytes.
         foreach (var kitten in kittensInLitter)
         {
-            await kittens.DeleteAsync(id, kitten.Id, CancellationToken.None);
+            await cats.DeleteAsync(kitten.Id, CancellationToken.None);
         }
 
         return true;
@@ -107,51 +109,56 @@ internal sealed class LitterHandler(
         var litter = await litters.GetAsync(litterId, cancellationToken);
         if (litter == null) return null;
 
-        if (litter.Status != LitterStatus.Born)
+        if (litter.Status != LitterStatus.Born || litter.BirthDate == null)
         {
             throw new InvalidStateException("Kittens can only be added to a litter that is born");
         }
 
-        if (newKitten.Sex == SexEnum.Unknown)
+        // Kattungen får fødselsdatoen til kullet. Cats sjekker kjønn og dato, som for alle andre katter.
+        var kitten = await cats.CreateKittenAsync(litterId, new CreateCatDto
         {
-            throw new ValidationException("Sex must be either male or female");
-        }
-
-        var kitten = new KittenEntity
-        {
-            Id = Guid.NewGuid(),
-            LitterId = litterId,
             Name = newKitten.Name,
             Sex = newKitten.Sex,
-            Status = KittenStatus.Available,
+            BirthDate = litter.BirthDate.Value,
             Description = newKitten.Description,
-            CreatedAt = timeProvider.GetUtcNow(),
-        };
+        }, cancellationToken);
 
-        await kittens.SaveAsync(kitten, cancellationToken);
-
-        return ToKittenDto(kitten);
+        return ToKittenDto(kitten, litterId);
     }
 
     public async Task<KittenDto?> ChangeKittenStatusAsync(Guid litterId, Guid kittenId, ChangeKittenStatusDto change, CancellationToken cancellationToken)
     {
-        var kitten = await kittens.GetAsync(litterId, kittenId, cancellationToken);
+        var kitten = await FindKittenAsync(litterId, kittenId, cancellationToken);
         if (kitten == null) return null;
 
-        if (!KittenStatusRules.CanChange(kitten.Status, change.Status))
+        var current = kitten.SaleStatus ?? KittenStatus.Available;
+        if (!KittenStatusRules.CanChange(current, change.Status))
         {
-            throw new InvalidStateException($"Cannot change kitten status from {kitten.Status} to {change.Status}");
+            throw new InvalidStateException($"Cannot change kitten status from {current} to {change.Status}");
         }
 
-        var changed = kitten with { Status = change.Status };
-        await kittens.SaveAsync(changed, cancellationToken);
+        var changed = await cats.SetSaleStatusAsync(kittenId, change.Status, cancellationToken);
 
-        return ToKittenDto(changed);
+        return changed == null ? null : ToKittenDto(changed, litterId);
     }
 
-    public Task<bool> DeleteKittenAsync(Guid litterId, Guid kittenId, CancellationToken cancellationToken)
+    public async Task<bool> DeleteKittenAsync(Guid litterId, Guid kittenId, CancellationToken cancellationToken)
     {
-        return kittens.DeleteAsync(litterId, kittenId, cancellationToken);
+        var kitten = await FindKittenAsync(litterId, kittenId, cancellationToken);
+        if (kitten == null) return false;
+
+        return await cats.DeleteAsync(kittenId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Katten, men bare hvis den er en kattunge i akkurat dette kullet.
+    /// Ellers kunne man endret en voksen katt, eller en kattunge i et annet kull, via feil adresse.
+    /// </summary>
+    private async Task<CatDto?> FindKittenAsync(Guid litterId, Guid kittenId, CancellationToken cancellationToken)
+    {
+        var cat = await cats.GetAsync(kittenId, cancellationToken);
+
+        return cat?.LitterId == litterId ? cat : null;
     }
 
     private async Task ValidateParentAsync(Guid catId, SexEnum expectedSex, string field, CancellationToken cancellationToken)
@@ -167,13 +174,19 @@ internal sealed class LitterHandler(
         {
             throw new ValidationException($"{field}: the cat must be {expectedSex.ToString().ToLowerInvariant()}");
         }
+
+        // En kattunge kan ikke bli forelder. (Del 2: en beholdt kattunge som er blitt avlskatt, kan.)
+        if (cat.LitterId != null)
+        {
+            throw new ValidationException($"{field}: the cat is a kitten");
+        }
     }
 
     private async Task<LitterDto> ToDtoWithKittensAsync(LitterEntity litter, CancellationToken cancellationToken)
     {
-        var kittensInLitter = await kittens.GetAllForLitterAsync(litter.Id, cancellationToken);
+        var kittensInLitter = await cats.GetByLitterAsync(litter.Id, cancellationToken);
 
-        return ToLitterDto(litter, [.. kittensInLitter.OrderBy(k => k.CreatedAt).Select(ToKittenDto)]);
+        return ToLitterDto(litter, [.. kittensInLitter.Select(kitten => ToKittenDto(kitten, litter.Id))]);
     }
 
     private static LitterDto ToLitterDto(LitterEntity litter, IReadOnlyList<KittenDto> kittensInLitter)
@@ -193,15 +206,15 @@ internal sealed class LitterHandler(
         };
     }
 
-    private static KittenDto ToKittenDto(KittenEntity kitten)
+    private static KittenDto ToKittenDto(CatDto kitten, Guid litterId)
     {
         return new KittenDto
         {
             Id = kitten.Id,
-            LitterId = kitten.LitterId,
+            LitterId = litterId,
             Name = kitten.Name,
             Sex = kitten.Sex,
-            Status = kitten.Status,
+            Status = kitten.SaleStatus ?? KittenStatus.Available,
             Description = kitten.Description,
             CreatedAt = kitten.CreatedAt,
         };

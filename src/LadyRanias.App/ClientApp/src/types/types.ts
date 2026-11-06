@@ -9,6 +9,8 @@ export type Cat = {
   birthDate: string // «2024-06-01»
   description: string
   createdAt: string
+  litterId?: string | null // satt = født her, i dette kullet
+  saleStatus?: KittenStatus | null // bare for kattunger
 }
 
 export type CatImage = {

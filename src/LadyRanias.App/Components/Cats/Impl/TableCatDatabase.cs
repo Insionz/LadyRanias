@@ -66,6 +66,8 @@ internal sealed class TableCatDatabase : ICatDatabase
             BirthDate = entity.BirthDate.ToDateTime(new TimeOnly(), DateTimeKind.Utc),
             Description = entity.Description,
             CreatedAt = entity.CreatedAt,
+            LitterId = entity.LitterId,
+            SaleStatus = entity.SaleStatus?.ToString(),
         };
     }
 
@@ -79,6 +81,8 @@ internal sealed class TableCatDatabase : ICatDatabase
             Description = cat.Description,
             Sex = Enum.Parse<SexEnum>(cat.Sex),
             CreatedAt = cat.CreatedAt,
+            LitterId = cat.LitterId,
+            SaleStatus = cat.SaleStatus == null ? null : Enum.Parse<KittenStatus>(cat.SaleStatus),
         };
     }
 }
