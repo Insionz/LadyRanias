@@ -38,7 +38,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | ✅ |
 | 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
 | 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
-| 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | Pågår |
+| 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | ✅ |
 
 ## Utsatt til senere
 
@@ -882,14 +882,14 @@ Azure må vite to ting om appen:
   for hvis Storage er nede, hjelper det ikke å starte appen på nytt. Det gjør det bare verre.
 - **Er den klar?** (*readiness*) Hvis nei, ikke send besøkende dit ennå. Her sjekker vi at appen faktisk når Storage.
 
-- [ ] `builder.Services.AddHealthChecks()` med en sjekk som heter `storage` og er merket `ready`. Den spør Table Storage om én tabell
+- [x] `builder.Services.AddHealthChecks()` med en sjekk som heter `storage` og er merket `ready`. Den spør Table Storage om én tabell
       (`TableServiceClient.QueryAsync(maxPerPage: 1)`), så vi vet at managed identity og nettverket virker.
-- [ ] `app.MapHealthChecks("/health/live", …)`: ingen sjekker, bare «prosessen svarer» (`Predicate = _ => false`)
-- [ ] `app.MapHealthChecks("/health/ready", …)`: bare sjekkene merket `ready`
-- [ ] **Fallback-ruten** må ikke ta `/health`. `/health/live` har ingen filendelse, så uten et unntak ville den gitt `index.html`.
+- [x] `app.MapHealthChecks("/health/live", …)`: ingen sjekker, bare «prosessen svarer» (`Predicate = _ => false`)
+- [x] `app.MapHealthChecks("/health/ready", …)`: bare sjekkene merket `ready`
+- [x] **Fallback-ruten** må ikke ta `/health`. `/health/live` har ingen filendelse, så uten et unntak ville den gitt `index.html`.
       Legg `health/` til i regex-en, ved siden av `api/`.
-- [ ] Tester: `/health/live` gir 200, `/health/ready` gir 200 (komponenttest) og 503 når sjekken feiler (enhetstest av sjekken)
-- [ ] **Bicep:** `probes` på containeren: `Liveness` mot `/health/live`, `Readiness` mot `/health/ready`, og `Startup` mot
+- [x] Tester: `/health/live` gir 200, `/health/ready` gir 200 (komponenttest) og 503 når sjekken feiler (enhetstest av sjekken)
+- [x] **Bicep:** `probes` på containeren: `Liveness` mot `/health/live`, `Readiness` mot `/health/ready`, og `Startup` mot
       `/health/live`, med god tid til oppstart
 
 ### Del 2: Application Insights med OpenTelemetry
@@ -900,25 +900,31 @@ anbefalte måte å sende den til Azure er pakken **`Azure.Monitor.OpenTelemetry.
 - alle `ILogger`-meldinger, også de fra bakgrunnsjobben
 - unntak, med hele stakken
 
-- [ ] Pakken `Azure.Monitor.OpenTelemetry.AspNetCore`
-- [ ] `builder.Services.AddOpenTelemetry().UseAzureMonitor()`, **bare** når `APPLICATIONINSIGHTS_CONNECTION_STRING` er satt.
+- [x] Pakken `Azure.Monitor.OpenTelemetry.AspNetCore`
+- [x] `builder.Services.AddOpenTelemetry().UseAzureMonitor()`, **bare** når `APPLICATIONINSIGHTS_CONNECTION_STRING` er satt.
       Lokalt, i tester og i CI sendes ingenting.
-- [ ] **Bicep:** én **Application Insights** (`appi-ladyranias`) som lagrer i den samme `log-ladyranias`, og
-      `APPLICATIONINSIGHTS_CONNECTION_STRING` som miljøvariabel på appen
-- [ ] Felles for test og prod, men hver app har sitt eget navn (`cloud_RoleName`), så de kan skilles i grafene.
-      Sett `OTEL_SERVICE_NAME` til `ladyranias-test` og `ladyranias-prod`.
+- [x] **Bicep:** én **Application Insights** per miljø (`appi-ladyranias-test` og `appi-ladyranias-prod`), begge lagrer i
+      den samme `log-ladyranias`. Koblingsstrengen er en secret på appen, lest som `APPLICATIONINSIGHTS_CONNECTION_STRING`.
+      *Endret fra planen:* egne ressurser per miljø i stedet for én felles, så testtrafikk ikke blander seg med ekte besøk.
+- [x] `OTEL_SERVICE_NAME` er `ladyranias-test` og `ladyranias-prod` (vises som `cloud_RoleName`)
+- [x] Kall til `/health/...` filtreres bort (`AspNetCoreTraceInstrumentationOptions.Filter`). Probene spør flere ganger i
+      minuttet og ville druknet de ekte besøkene.
 
 **Personvern:** Application Insights lagrer adresser og IP-adresser. IP-adressen anonymiseres som standard (siste del fjernes).
 Ikke logg innholdet i kontaktmeldinger eller e-postadresser. Logg id-er, slik vi allerede gjør.
 
 ### Del 3: Varsler
-- [ ] **Action group** `ag-ladyranias`: hvem som får beskjed, og hvordan. E-post til deg.
-- [ ] **Tilgjengelighet:** en *standard availability test* i Application Insights som henter
+- [x] **Action group** `ag-ladyranias-prod`: hvem som får beskjed, og hvordan. E-post til deg.
+- [x] **Tilgjengelighet:** en *standard availability test* i Application Insights som henter
       `https://www.ladyranias.no/health/ready` hvert 15. minutt fra to steder. Feiler den fra begge, får du e-post.
-- [ ] **Feil i appen:** et varsel når det kommer mer enn 5 svar med 5xx i løpet av 15 minutter
-- [ ] **Poison-køen:** et loggvarsel når bakgrunnsjobben skriver «flyttet til poison-køen». Da har et e-postvarsel til
+- [x] **Feil i appen:** et varsel når det kommer minst ett svar med 5xx i løpet av 15 minutter (siden har lite trafikk,
+      så én feil er verdt å se på)
+- [x] **Poison-køen:** et loggvarsel når bakgrunnsjobben skriver «flyttet til poison-køen». Da har et e-postvarsel til
       moren din feilet fem ganger, og du må se på det.
-- [ ] Alt i Bicep, så det kan gjenskapes
+- [x] Tilgjengelighetstesten sjekker også at sertifikatet er gyldig i minst 7 dager til
+- [x] **Budsjett** for ressursgruppen (`monthlyBudget`), e-post ved 80 % brukt og 100 % forventet
+- [x] Alt i Bicep, så det kan gjenskapes. Varslene lages bare der `alertEmail` er satt, altså i prod.
+      Test sover når ingen bruker den, og en tilgjengelighetstest ville holdt den våken.
 
 **Hva koster det?** Application Insights og Log Analytics er gratis opp til 5 GB i måneden, og denne appen bruker en
 liten brøkdel av det. Tilgjengelighetstester koster per kjøring. Hvert 15. minutt fra to steder blir omtrent 6 000 kjøringer
@@ -930,6 +936,16 @@ i måneden, noen få titalls kroner. Sjekk gjerne prisen i Azure-priskalkulatore
 - [ ] **Transaction search** viser en kontaktmelding hele veien: forespørselen, lagringen, køen, og e-posten som ble sendt
 - [ ] Når du stopper prod-appen (**Container App → Stop**), kommer det en e-post innen ca. 15 minutter. Start den igjen etterpå.
 - [ ] Alle tester er grønne, og alt er i Bicep
+
+**Lærdom fra utrullingen**
+- Kode først, Bicep etterpå. Probene mot `/health/...` ga 404 og omstart om og om igjen hvis de kom før koden.
+- Hent taggen som kjører **rett før** `what-if` og `create`, og send den med (`-p imageTag=...`). Ellers bytter Bicep imaget
+  til `main` eller til en gammel versjon:
+  ```powershell
+  $tag = (az containerapp show -n ca-ladyranias-prod -g rg-ladyranias --query "properties.template.containers[0].image" -o tsv).Split(':')[-1]
+  ```
+- Bare to hemmeligheter trengs i terminalen nå: `ENTRA_CLIENT_SECRET` og `EMAIL_CONNECTION_STRING`. Varslingsadressen står i
+  bicepparam-filene.
 
 **Det kan være lurt å slå opp:** «ASP.NET Core health checks», `IHealthCheck`, «liveness vs readiness»,
 «Container Apps health probes», «Azure Monitor OpenTelemetry Distro», «Application Insights standard availability test»,
