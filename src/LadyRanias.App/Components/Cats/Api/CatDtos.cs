@@ -21,6 +21,9 @@ public sealed record CatDto
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
 
+    /// <summary>null = lever. En død katt slettes ikke: den er fortsatt mor eller far i kullene sine, og vises på minnesiden.</summary>
+    public DateOnly? DeathDate { get; set; }
+
     /// <summary>Satt hvis katten er født her. Da er den (eller har vært) en kattunge i dette kullet.</summary>
     public Guid? LitterId { get; set; }
 
@@ -45,6 +48,9 @@ public sealed record CreateCatDto
     public bool Neutered { get; set; }
     [StringLength(60)] public string? RegistrationNumber { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
+
+    /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
+    public DateOnly? DeathDate { get; set; }
 }
 
 /// <summary>Full oppdatering: alle feltene sendes, også de som ikke er endret.</summary>
@@ -65,6 +71,9 @@ public sealed record UpdateCatDto
     public bool Neutered { get; set; }
     [StringLength(60)] public string? RegistrationNumber { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
+
+    /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
+    public DateOnly? DeathDate { get; set; }
 }
 
 public enum SexEnum

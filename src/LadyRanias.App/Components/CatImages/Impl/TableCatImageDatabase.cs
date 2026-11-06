@@ -62,6 +62,7 @@ internal sealed class TableCatImageDatabase : ICatImageDatabase
             ETag = ETag.All,
             ContentType = catImage.ContentType,
             CreatedAt = catImage.CreatedAt,
+            TakenAt = catImage.TakenAt?.ToDateTime(new TimeOnly(), DateTimeKind.Utc),
         };
     }
 
@@ -73,6 +74,7 @@ internal sealed class TableCatImageDatabase : ICatImageDatabase
             ImageId = Guid.Parse(catImage.RowKey),
             ContentType = catImage.ContentType,
             CreatedAt = catImage.CreatedAt,
+            TakenAt = catImage.TakenAt == null ? null : DateOnly.FromDateTime(catImage.TakenAt.Value),
         };
     }
 }

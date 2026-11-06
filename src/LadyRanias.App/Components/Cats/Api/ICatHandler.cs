@@ -5,8 +5,11 @@ public interface ICatHandler
     /// <summary>Alle katter som ikke er kattunger, også eksterne (admin). Kattungene hentes per kull med GetByLitterAsync.</summary>
     Task<IReadOnlyList<CatDto>> GetAllAsync(CancellationToken cancellationToken);
 
-    /// <summary>Våre egne katter: i avl og pensjonerte. Det den offentlige siden viser.</summary>
+    /// <summary>Våre egne katter som lever: i avl og pensjonerte. Det den offentlige siden viser.</summary>
     Task<IReadOnlyList<CatDto>> GetOwnAsync(CancellationToken cancellationToken);
+
+    /// <summary>Våre egne katter som er døde, sist døde først. Til minnesiden.</summary>
+    Task<IReadOnlyList<CatDto>> GetInMemoryAsync(CancellationToken cancellationToken);
 
     /// <summary>Henter alle katter, også kattunger.</summary>
     Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken);

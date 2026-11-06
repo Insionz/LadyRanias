@@ -3,6 +3,8 @@ using LadyRanias.App.Components.CatImages.Api;
 using LadyRanias.App.Components.CatImages.Impl;
 using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
+using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Litters.Impl;
 using Microsoft.Extensions.Time.Testing;
 
 namespace LadyRanias.Tests.ServiceTests.CatImageHandlerTests;
@@ -23,6 +25,7 @@ public sealed class CatImageHandlerTests
     private readonly FakeImageProcessor _processor = new();
     private readonly CatImageRemover _remover;
     private readonly CatHandler _catHandler;
+    private readonly LitterHandler _litterHandler;
     private readonly CatImageHandler _handler;
     private CatDto _kiara = null!;
 
@@ -33,7 +36,9 @@ public sealed class CatImageHandlerTests
         // Ekte CatHandler med database i minnet, slik at "finnes katten?" testes gjennom Cats-komponentens API.
         // Lytteren er med, så sletting av en katt også rydder bildene, slik det skjer i appen.
         _catHandler = new CatHandler(new InMemoryCatDatabase(), _clock, [new DeleteImagesWhenCatIsDeleted(_remover)]);
-        _handler = new CatImageHandler(_imageDatabase, _imageStore, _processor, _remover, _catHandler, _clock);
+        // Ekte LitterHandler også, med lytteren som sletter bildene av kullet.
+        _litterHandler = new LitterHandler(new InMemoryLitterDatabase(), _catHandler, _clock, [new DeleteImagesWhenLitterIsDeleted(_remover)]);
+        _handler = new CatImageHandler(_imageDatabase, _imageStore, _processor, _remover, _catHandler, _litterHandler, _clock);
     }
 
     [TestInitialize]
@@ -118,7 +123,7 @@ public sealed class CatImageHandlerTests
     {
         var store = new TrackingImageStore();
         var failingDatabase = new FailingCatImageDatabase();
-        var handler = new CatImageHandler(failingDatabase, store, _processor, new CatImageRemover(failingDatabase, store), _catHandler, _clock);
+        var handler = new CatImageHandler(failingDatabase, store, _processor, new CatImageRemover(failingDatabase, store), _catHandler, _litterHandler, _clock);
         using var content = new MemoryStream(UploadBytes);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
@@ -209,6 +214,115 @@ public sealed class CatImageHandlerTests
         await AssertNoFilesAsync(second.ImageId);
     }
 
+    // ---------- Når bildet ble tatt ----------
+
+    [TestMethod]
+    public async Task Upload_without_camera_date_is_taken_today()
+    {
+        var uploaded = await UploadAsync();
+
+        Assert.AreEqual(DateOnly.FromDateTime(Start.UtcDateTime), uploaded.TakenAt);
+    }
+
+    [TestMethod]
+    public async Task Upload_uses_camera_date_when_the_image_has_one()
+    {
+        var cameraDate = new DateOnly(2026, 9, 15);
+        var handler = new CatImageHandler(_imageDatabase, _imageStore, new FakeImageProcessor(cameraDate), _remover, _catHandler, _litterHandler, _clock);
+        using var content = new MemoryStream(UploadBytes);
+
+        var uploaded = await handler.UploadAsync(_kiara.Id, content, "image/jpeg", UploadBytes.Length, CancellationToken.None);
+
+        Assert.AreEqual(cameraDate, uploaded?.TakenAt);
+    }
+
+    [TestMethod]
+    public async Task GetAll_returns_last_taken_first_even_if_uploaded_earlier()
+    {
+        // Mamma laster opp bildet fra uke 8 først, og finner bildet fra uke 3 senere.
+        var week8 = await UploadAsync();
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var week3 = await UploadAsync();
+        await _handler.SetTakenAtAsync(_kiara.Id, week3.ImageId, new DateOnly(2026, 10, 1), CancellationToken.None);
+
+        var images = await _handler.GetAllAsync(_kiara.Id, CancellationToken.None);
+
+        Assert.IsNotNull(images);
+        Assert.AreEqual(week8.ImageId, images[0].ImageId);
+        Assert.AreEqual(week3.ImageId, images[1].ImageId);
+    }
+
+    [TestMethod]
+    public async Task Set_taken_at_in_the_future_is_rejected()
+    {
+        var uploaded = await UploadAsync();
+        var tomorrow = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(1);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.SetTakenAtAsync(_kiara.Id, uploaded.ImageId, tomorrow, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Set_taken_at_on_unknown_image_returns_null()
+    {
+        Assert.IsNull(await _handler.SetTakenAtAsync(_kiara.Id, Guid.NewGuid(), new DateOnly(2026, 1, 1), CancellationToken.None));
+    }
+
+    // ---------- Bilder av hele kullet ----------
+
+    private async Task<LitterDto> CreateLitterAsync()
+    {
+        var father = await _catHandler.CreateAsync(new CreateCatDto
+        {
+            Breed = Breed.MaineCoon,
+            Name = "Børre",
+            Sex = SexEnum.Male,
+            BirthDate = new DateOnly(2023, 1, 1),
+            Description = "Far",
+        }, CancellationToken.None);
+
+        return await _litterHandler.CreateAsync(new CreateLitterDto { Name = "A-kullet", MotherId = _kiara.Id, FatherId = father.Id }, CancellationToken.None);
+    }
+
+    [TestMethod]
+    public async Task Litter_images_are_kept_apart_from_cat_images()
+    {
+        var litter = await CreateLitterAsync();
+        using var content = new MemoryStream(UploadBytes);
+
+        var uploaded = await _handler.UploadForLitterAsync(litter.Id, content, "image/png", UploadBytes.Length, CancellationToken.None);
+
+        Assert.IsNotNull(uploaded);
+        var litterImages = await _handler.GetAllForLitterAsync(litter.Id, CancellationToken.None);
+        Assert.IsNotNull(litterImages);
+        Assert.HasCount(1, litterImages);
+        Assert.HasCount(0, (await _handler.GetAllAsync(_kiara.Id, CancellationToken.None))!);
+        Assert.IsNotNull(await _handler.OpenAsync(litter.Id, uploaded.ImageId, CatImageSize.Thumb, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Upload_for_unknown_litter_returns_null()
+    {
+        using var content = new MemoryStream(UploadBytes);
+
+        Assert.IsNull(await _handler.UploadForLitterAsync(Guid.NewGuid(), content, "image/png", UploadBytes.Length, CancellationToken.None));
+        Assert.IsNull(await _handler.GetAllForLitterAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Deleting_litter_removes_its_images()
+    {
+        var litter = await CreateLitterAsync();
+        using var content = new MemoryStream(UploadBytes);
+        var uploaded = await _handler.UploadForLitterAsync(litter.Id, content, "image/png", UploadBytes.Length, CancellationToken.None);
+        Assert.IsNotNull(uploaded);
+
+        await _litterHandler.DeleteAsync(litter.Id, CancellationToken.None);
+
+        Assert.HasCount(0, await _imageDatabase.GetAllForCatAsync(litter.Id, CancellationToken.None));
+        Assert.IsNull(await _imageStore.OpenAsync(CatImageHandler.BlobName(litter.Id, uploaded.ImageId, CatImageHandler.ThumbnailSuffix), CancellationToken.None));
+    }
+
     private async Task<CatImageDto> UploadAsync()
     {
         using var content = new MemoryStream(UploadBytes);
@@ -233,13 +347,13 @@ public sealed class CatImageHandlerTests
     }
 
     /// <summary>Gir faste bytes tilbake, så handleren kan testes uten ekte bildebehandling.</summary>
-    private sealed class FakeImageProcessor : IImageProcessor
+    private sealed class FakeImageProcessor(DateOnly? takenAt = null) : IImageProcessor
     {
         public static readonly byte[] Thumbnail = [10, 11];
         public static readonly byte[] Large = [20, 21, 22];
 
         public Task<ProcessedImage> ProcessAsync(Stream input, CancellationToken cancellationToken) =>
-            Task.FromResult(new ProcessedImage(Thumbnail, Large, "image/webp"));
+            Task.FromResult(new ProcessedImage(Thumbnail, Large, "image/webp", takenAt));
     }
 
     /// <summary>Husker hvilke filer som ble lagret og slettet, så testen kan sjekke oppryddingen.</summary>

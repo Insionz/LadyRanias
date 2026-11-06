@@ -22,6 +22,7 @@ export type Cat = {
   neutered: boolean
   registrationNumber?: string | null
   titles?: string | null
+  deathDate?: string | null // null = lever
   litterId?: string | null // satt = født her, i dette kullet
   saleStatus?: KittenStatus | null // bare for kattunger
 }
@@ -29,6 +30,7 @@ export type Cat = {
 export type CatImage = {
   imageId: string
   createdAt: string
+  takenAt: string // «2026-03-05». Fra kameraet, ellers opplastingsdagen. Nyeste først fra API-et.
 }
 
 export type ImageSize = 'thumb' | 'large'
@@ -48,6 +50,7 @@ export type Kitten = {
   breed: Breed
   emsCode?: string | null
   color?: string | null
+  deathDate?: string | null
 }
 
 /** Mor eller far, slik kullet viser dem. Eksterne katter (lånte hannkatter) lenkes ikke til. */

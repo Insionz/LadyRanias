@@ -2,6 +2,7 @@ import { Anchor, Card, Divider, Group, SimpleGrid, Stack, Text, Title } from '@m
 import { Link } from 'react-router'
 import { useApi } from '../api/api'
 import KittenCard from '../components/KittenCard'
+import LitterPhotos from '../components/LitterPhotos'
 import Parents from '../components/Parents'
 import { ErrorMessage, Loading } from '../components/Status'
 import type { Litter } from '../types/types'
@@ -31,7 +32,9 @@ function PlannedLitter({ litter }: { litter: Litter }) {
 }
 
 function BornLitter({ litter }: { litter: Litter }) {
-  const available = litter.kittens.filter(k => k.status === 'Available').length
+  // Kattunger som ikke klarte seg, vises ikke her. Admin ser dem fortsatt.
+  const kittens = litter.kittens.filter(k => !k.deathDate)
+  const available = kittens.filter(k => k.status === 'Available').length
 
   return (
     <Stack gap="sm">
@@ -48,7 +51,9 @@ function BornLitter({ litter }: { litter: Litter }) {
       <Parents litter={litter} />
       {litter.description && <Text style={{ whiteSpace: 'pre-line' }}>{litter.description}</Text>}
 
-      {litter.kittens.length === 0 ? (
+      <LitterPhotos litter={litter} />
+
+      {kittens.length === 0 ? (
         <Text c="dimmed">Kattungene legges inn snart.</Text>
       ) : (
         <>
@@ -56,7 +61,7 @@ function BornLitter({ litter }: { litter: Litter }) {
             {available === 0 ? 'Ingen ledige kattunger' : available === 1 ? '1 ledig kattunge' : `${available} ledige kattunger`}
           </Text>
           <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
-            {litter.kittens.map(kitten => (
+            {kittens.map(kitten => (
               <KittenCard key={kitten.id} kitten={kitten} />
             ))}
           </SimpleGrid>

@@ -19,7 +19,8 @@ internal sealed class SkiaSharpImageProcessor : IImageProcessor
         using var buffer = new MemoryStream();
         await input.CopyToAsync(buffer, cancellationToken);
 
-        using var data = SKData.CreateCopy(buffer.ToArray());
+        var bytes = buffer.ToArray();
+        using var data = SKData.CreateCopy(bytes);
 
         // Avslører filer som bare later som de er bilder (feil Content-Type): da finner Skia ingen dekoder.
         using var codec = SKCodec.Create(data)
@@ -37,7 +38,8 @@ internal sealed class SkiaSharpImageProcessor : IImageProcessor
         var thumbnail = ResizeToWebp(oriented, ThumbnailMaxSize);
         var large = ResizeToWebp(oriented, LargeMaxSize);
 
-        return new ProcessedImage(thumbnail, large, "image/webp");
+        // Datoen leses fra originalen. I de nye filene finnes den ikke lenger.
+        return new ProcessedImage(thumbnail, large, "image/webp", ExifDate.TryRead(bytes));
     }
 
     private static byte[] ResizeToWebp(SKBitmap source, int maxSize)

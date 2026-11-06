@@ -31,6 +31,22 @@ public sealed class CatImageAdminController(ICatImageHandler handler) : Controll
         }
     }
 
+    /// <summary>Retter datoen bildet ble tatt, for eksempel når siden har gjettet feil uke.</summary>
+    [HttpPut("{catId:guid}/images/{imageId:guid}")]
+    public async Task<ActionResult<CatImageDto>> SetTakenAt(Guid catId, Guid imageId, SetTakenAtDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var image = await handler.SetTakenAtAsync(catId, imageId, dto.TakenAt, cancellationToken);
+
+            return image == null ? NotFound() : image;
+        }
+        catch (ValidationException ex)
+        {
+            return ValidationProblem(detail: ex.Message);
+        }
+    }
+
     [HttpDelete("{catId:guid}/images/{imageId:guid}")]
     public async Task<IActionResult> Delete(Guid catId, Guid imageId, CancellationToken cancellationToken)
     {

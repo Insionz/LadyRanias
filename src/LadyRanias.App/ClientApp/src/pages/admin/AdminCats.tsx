@@ -74,7 +74,14 @@ export default function AdminCats() {
                     breedLabel(cat.breed)
                   )}
                 </Table.Td>
-                <Table.Td>{roleLabel(cat.role)}</Table.Td>
+                <Table.Td>
+                  {roleLabel(cat.role)}
+                  {cat.deathDate && (
+                    <Badge ml="xs" variant="outline" color="gray">
+                      Død
+                    </Badge>
+                  )}
+                </Table.Td>
                 <Table.Td>{sexLabel(cat.sex)}</Table.Td>
                 <Table.Td>{formatDate(cat.birthDate)}</Table.Td>
                 <Table.Td>
@@ -118,7 +125,7 @@ export default function AdminCats() {
       </Modal>
 
       <Modal opened={imagesFor !== null} onClose={() => setImagesFor(null)} title={`Bilder av ${imagesFor?.name ?? ''}`} size="lg">
-        {imagesFor && <CatImagesEditor key={imagesFor.id} catId={imagesFor.id} />}
+        {imagesFor && <CatImagesEditor key={imagesFor.id} ownerId={imagesFor.id} />}
       </Modal>
     </>
   )

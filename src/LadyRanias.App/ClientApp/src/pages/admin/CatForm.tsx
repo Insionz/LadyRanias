@@ -38,6 +38,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [neutered, setNeutered] = useState(cat?.neutered ?? false)
   const [registrationNumber, setRegistrationNumber] = useState(cat?.registrationNumber ?? '')
   const [titles, setTitles] = useState(cat?.titles ?? '')
+  const [deathDate, setDeathDate] = useState(cat?.deathDate ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,7 +50,21 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
     setSaving(true)
     setError(null)
 
-    const body = { name, sex, birthDate, description, breed, role, emsCode, color, neutered, registrationNumber, titles }
+    // Tom dødsdato betyr at katten lever. Den sendes som null, ikke som tom tekst.
+    const body = {
+      name,
+      sex,
+      birthDate,
+      description,
+      breed,
+      role,
+      emsCode,
+      color,
+      neutered,
+      registrationNumber,
+      titles,
+      deathDate: deathDate || null,
+    }
     try {
       if (cat) {
         await send('PUT', `/api/admin/cats/${cat.id}`, body)
@@ -130,7 +145,21 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
           />
           <TextInput label="Titler" placeholder="For eksempel «IC»" value={titles} onChange={e => setTitles(e.currentTarget.value)} />
         </SimpleGrid>
-        <Checkbox label="Kastrert" checked={neutered} onChange={e => setNeutered(e.currentTarget.checked)} />
+        <Group align="flex-end">
+          <Checkbox label="Kastrert" checked={neutered} onChange={e => setNeutered(e.currentTarget.checked)} mb={8} />
+          {/* Bare for katter som finnes. En ny katt lever. */}
+          {cat && (
+            <TextInput
+              label="Dødsdato"
+              description="Katten flyttes til minnesiden. La stå tom så lenge den lever."
+              type="date"
+              min={birthDate || undefined}
+              max={today}
+              value={deathDate}
+              onChange={e => setDeathDate(e.currentTarget.value)}
+            />
+          )}
+        </Group>
         <Textarea
           label="Beskrivelse"
           required

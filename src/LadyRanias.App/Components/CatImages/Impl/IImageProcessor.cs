@@ -7,4 +7,5 @@ internal interface IImageProcessor
     Task<ProcessedImage> ProcessAsync(Stream input, CancellationToken cancellationToken);
 }
 
-internal sealed record ProcessedImage(byte[] Thumbnail, byte[] Large, string ContentType);
+/// <param name="TakenAt">Datoen bildet ble tatt, fra EXIF, hvis bildet hadde den. Metadataen er fjernet fra selve bildene.</param>
+internal sealed record ProcessedImage(byte[] Thumbnail, byte[] Large, string ContentType, DateOnly? TakenAt = null);

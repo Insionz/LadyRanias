@@ -25,7 +25,7 @@ public sealed class LitterHandlerTests
     {
         // Ekte CatHandler med database i minnet. Da tester vi samspillet med Cats uten å lage en falsk ICatHandler.
         _cats = new CatHandler(new InMemoryCatDatabase(), _clock, []);
-        _handler = new LitterHandler(_litters, _cats, _clock);
+        _handler = new LitterHandler(_litters, _cats, _clock, []);
     }
 
     [TestInitialize]
