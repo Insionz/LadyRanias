@@ -50,6 +50,13 @@ param entraClientSecret string
 @secure()
 param emailConnectionString string
 
+// ---- Varsler (steg 13, del 3) ----
+@description('Hvem som får e-post når noe er galt. Tom = ingen varsler (test). Krever canonicalHost, som tilgjengelighetstesten sjekker.')
+param alertEmail string = ''
+
+@description('Månedsbudsjett for hele ressursgruppen, i valutaen abonnementet faktureres i. Varsel ved 80 % brukt og 100 % forventet.')
+param monthlyBudget int = 0
+
 // =====================================================================================
 // Felles for alle miljøer: logging og Container Apps-miljøet
 // =====================================================================================
@@ -216,13 +223,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           // Startup:   venter til appen har startet før de andre slår inn (opptil 10 × 3 s = 30 s).
           // Liveness:  svarer ikke /health/live 3 ganger på rad, startes containeren på nytt.
           // Readiness: svarer ikke /health/ready (Table Storage), får containeren ikke trafikk før den svarer igjen.
+          // Samme rekkefølge som Azure lagrer dem i. Ellers viser what-if dem som endret hver gang.
           probes: [
-            {
-              type: 'Startup'
-              httpGet: { path: '/health/live', port: 8080 }
-              periodSeconds: 3
-              failureThreshold: 10
-            }
             {
               type: 'Liveness'
               httpGet: { path: '/health/live', port: 8080 }
@@ -235,6 +237,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
               periodSeconds: 15
               timeoutSeconds: 5
               failureThreshold: 3
+            }
+            {
+              type: 'Startup'
+              httpGet: { path: '/health/live', port: 8080 }
+              periodSeconds: 3
+              failureThreshold: 10
             }
           ]
         }
@@ -256,6 +264,164 @@ resource githubDeploy 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roles.contributor)
     principalId: githubPrincipalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// =====================================================================================
+// Varsler (steg 13, del 3). Bare der alertEmail er satt, altså i prod.
+// Test sover når ingen bruker den, og en tilgjengelighetstest ville holdt den våken.
+// =====================================================================================
+
+var alertsEnabled = !empty(alertEmail)
+
+// Hvem som varsles, og hvordan. Alle varslene under peker hit.
+resource actionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (alertsEnabled) {
+  name: 'ag-ladyranias-${environmentName}'
+  location: 'global'
+  properties: {
+    groupShortName: 'ladyranias' // høyst 12 tegn, står i SMS og e-post
+    enabled: true
+    emailReceivers: [
+      { name: 'utvikler', emailAddress: alertEmail, useCommonAlertSchema: true }
+    ]
+  }
+}
+
+// 1) Er siden oppe? Azure spør /health/ready utenfra hvert 15. minutt fra to steder i Europa.
+//    Sjekker også at sertifikatet er gyldig i minst 7 dager til (de fornyes av seg selv, men hvis ikke ...).
+resource availabilityTest 'Microsoft.Insights/webtests@2022-06-15' = if (alertsEnabled) {
+  name: 'avail-ladyranias-${environmentName}'
+  location: location
+  // Kobler testen til App Insights-ressursen, så den vises under «Availability» der.
+  tags: { 'hidden-link:${appInsights.id}': 'Resource' }
+  kind: 'standard'
+  properties: {
+    SyntheticMonitorId: 'avail-ladyranias-${environmentName}'
+    Name: 'Forsiden svarer (${canonicalHost})'
+    Enabled: true
+    Kind: 'standard'
+    Frequency: 900
+    Timeout: 30
+    RetryEnabled: true // ett nytt forsøk før det regnes som feil, så et enkelt nettverkshikke ikke gir varsel
+    Locations: [
+      { Id: 'emea-nl-ams-azr' } // West Europe
+      { Id: 'emea-gb-db3-azr' } // North Europe
+    ]
+    Request: {
+      RequestUrl: 'https://${canonicalHost}/health/ready'
+      HttpVerb: 'GET'
+      ParseDependentRequests: false
+    }
+    ValidationRules: {
+      ExpectedHttpStatusCode: 200
+      SSLCheck: true
+      SSLCertRemainingLifetimeCheck: 7
+    }
+  }
+}
+
+// Varsel når begge stedene feiler. Ett sted alene kan være et nettverksproblem hos Microsoft.
+resource availabilityAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (alertsEnabled) {
+  name: 'alert-ladyranias-${environmentName}-nede'
+  location: 'global'
+  properties: {
+    description: 'www.ladyranias.no svarer ikke'
+    severity: 1
+    enabled: true
+    scopes: [availabilityTest.id, appInsights.id]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.WebtestLocationAvailabilityCriteria'
+      webTestId: availabilityTest.id
+      componentId: appInsights.id
+      failedLocationCount: 2
+    }
+    actions: [{ actionGroupId: actionGroup.id }]
+  }
+}
+
+// 2) Serverfeil: minst én 500-feil siste 15 minutter.
+resource serverErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (alertsEnabled) {
+  name: 'alert-ladyranias-${environmentName}-5xx'
+  location: location
+  properties: {
+    displayName: 'LadyRanias: serverfeil (5xx)'
+    description: 'Appen har svart med 500-feil. Se Failures i App Insights.'
+    severity: 2
+    enabled: true
+    scopes: [appInsights.id]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT15M'
+    criteria: {
+      allOf: [
+        {
+          query: 'requests | where toint(resultCode) >= 500'
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
+        }
+      ]
+    }
+    autoMitigate: true // varselet lukkes av seg selv når feilene slutter
+    actions: { actionGroups: [actionGroup.id] }
+  }
+}
+
+// 3) Et kontaktvarsel har feilet så mange ganger at det er lagt i poison-køen.
+//    Da har mamma ikke fått e-post om en melding. Teksten kommer fra ContactNotificationWorker.
+resource poisonAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (alertsEnabled) {
+  name: 'alert-ladyranias-${environmentName}-poison'
+  location: location
+  properties: {
+    displayName: 'LadyRanias: kontaktvarsel i poison-køen'
+    description: 'En kontaktmelding ble ikke varslet på e-post. Meldingen ligger i admin, men se på feilen i App Insights.'
+    severity: 2
+    enabled: true
+    scopes: [appInsights.id]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT15M'
+    criteria: {
+      allOf: [
+        {
+          query: 'traces | where severityLevel >= 3 and message has "poison"'
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
+        }
+      ]
+    }
+    autoMitigate: false // hver melding er en egen sak, ikke noe som «går over»
+    actions: { actionGroups: [actionGroup.id] }
+  }
+}
+
+// 4) Budsjett for hele ressursgruppen (test og prod sammen).
+resource budget 'Microsoft.Consumption/budgets@2023-11-01' = if (alertsEnabled && monthlyBudget > 0) {
+  name: 'budget-ladyranias'
+  properties: {
+    category: 'Cost'
+    amount: monthlyBudget
+    timeGrain: 'Monthly'
+    timePeriod: { startDate: '2026-11-01' } // må være den 1. i en måned, og skal ikke endres etterpå
+    notifications: {
+      brukt80: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 80
+        thresholdType: 'Actual'
+        contactEmails: [alertEmail]
+      }
+      forventet100: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 100
+        thresholdType: 'Forecasted'
+        contactEmails: [alertEmail]
+      }
+    }
   }
 }
 
