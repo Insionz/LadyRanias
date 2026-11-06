@@ -1008,6 +1008,8 @@ Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
       (små bokstaver og ekstra mellomrom er greit, de ryddes bort). Tom tekst lagres som `null`.
 - [x] Roller: `Kitten` kan ikke velges for en ny katt. Bare en katt født i et kull kan være `Kitten`, og bare en
       **beholdt** kattunge kan bli `Breeding` eller `Retired`. Den beholder `LitterId` og vises fortsatt i kullet.
+- [x] En kastrert katt kan ikke være `Breeding`. Skjemaet bytter rollen til «Pensjonert» når «Kastrert» krysses av
+      (og fjerner «Kastrert» hvis rollen settes til «I avl»), med en kort forklaring. Andre roller kan være kastrert.
 - [x] `GetAllAsync` (admin) viser alle unntatt kattunger, også eksterne. `GetOwnAsync` (offentlig) viser bare `Breeding` og `Retired`.
 - [x] En ny kattunge får `Role = Kitten` og rasen til moren. Mangler moren rase, avvises den med beskjed om å sette rasen først.
 - [x] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
@@ -1051,6 +1053,10 @@ Den får en dødsdato og flyttes til en egen side, «Til minne».
 - [x] Siden `/minne` er en egen fane i menyen, «Til minne»
 - [x] Kattunger som dør, vises ikke på den offentlige kullsiden, og heller ikke på minnesiden. Admin ser dem, merket «Død».
 - [x] Dødsdato settes i det vanlige skjemaet («Rediger»), både for katter og kattunger
+- [x] **Død uten dato:** mange av de gamle kattene husker man ikke dødsdatoen til. Derfor er «død» et eget felt
+      (`Deceased`), og datoen er valgfri. En dato betyr død, også uten avkrysning. Fjernes avkrysningen, forsvinner datoen.
+      Rader fra før leses som døde hvis de har en dato. På minnesiden kommer de uten dato sist, og viser «f. 2012».
+- [x] «Død» og dødsdato kan settes allerede når katten opprettes, for mange av de døde kattene legges inn i ettertid
 
 ---
 

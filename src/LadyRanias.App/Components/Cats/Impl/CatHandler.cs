@@ -17,14 +17,18 @@ internal sealed class CatHandler(
 
     public async Task<IReadOnlyList<CatDto>> GetOwnAsync(CancellationToken cancellationToken)
     {
-        return await GetWhereAsync(cat => IsOwn(cat) && cat.DeathDate == null, cancellationToken);
+        return await GetWhereAsync(cat => IsOwn(cat) && !cat.Deceased, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CatDto>> GetInMemoryAsync(CancellationToken cancellationToken)
     {
-        var deceased = await GetWhereAsync(cat => IsOwn(cat) && cat.DeathDate != null, cancellationToken);
+        var deceased = await GetWhereAsync(cat => IsOwn(cat) && cat.Deceased, cancellationToken);
 
-        return [.. deceased.OrderByDescending(cat => cat.DeathDate)];
+        // Sist døde først. De uten dato (de vi ikke husker) til slutt, eldste først.
+        return [.. deceased
+            .OrderBy(cat => cat.DeathDate == null)
+            .ThenByDescending(cat => cat.DeathDate)
+            .ThenBy(cat => cat.BirthDate)];
     }
 
     /// <summary>Våre egne voksne katter. Ikke kattunger (de står i kullet) og ikke eksterne.</summary>
@@ -55,6 +59,8 @@ internal sealed class CatHandler(
         Validate(newCat.Sex, newCat.BirthDate, newCat.Breed, newCat.EmsCode, timeNow);
         ValidateDeathDate(newCat.BirthDate, newCat.DeathDate, timeNow);
 
+        ValidateNeutered(newCat.Role, newCat.Neutered);
+
         if (newCat.Role == CatRole.Kitten)
         {
             throw new ValidationException("Role: kittens are added to a litter");
@@ -75,7 +81,8 @@ internal sealed class CatHandler(
             Neutered = newCat.Neutered,
             RegistrationNumber = Clean(newCat.RegistrationNumber),
             Titles = Clean(newCat.Titles),
-            DeathDate = newCat.DeathDate,
+            Deceased = IsDeceased(newCat.Deceased, newCat.DeathDate),
+            DeathDate = DeathDateIf(newCat.Deceased, newCat.DeathDate),
         };
 
         await database.SaveAsync(cat, cancellationToken);
@@ -96,6 +103,7 @@ internal sealed class CatHandler(
         Validate(update.Sex, update.BirthDate, update.Breed, update.EmsCode, timeProvider.GetUtcNow());
         ValidateDeathDate(update.BirthDate, update.DeathDate, timeProvider.GetUtcNow());
         ValidateRoleChange(cat, update.Role);
+        ValidateNeutered(update.Role, update.Neutered);
 
         // «with» lager en kopi med de nye verdiene. Id, CreatedAt, LitterId og SaleStatus følger med uendret.
         var updatedCat = cat with
@@ -111,7 +119,8 @@ internal sealed class CatHandler(
             Neutered = update.Neutered,
             RegistrationNumber = Clean(update.RegistrationNumber),
             Titles = Clean(update.Titles),
-            DeathDate = update.DeathDate,
+            Deceased = IsDeceased(update.Deceased, update.DeathDate),
+            DeathDate = DeathDateIf(update.Deceased, update.DeathDate),
         };
 
         await database.SaveAsync(updatedCat, cancellationToken);
@@ -173,7 +182,8 @@ internal sealed class CatHandler(
             Neutered = newKitten.Neutered,
             RegistrationNumber = Clean(newKitten.RegistrationNumber),
             Titles = Clean(newKitten.Titles),
-            DeathDate = null, // en ny kattunge lever
+            Deceased = false, // en ny kattunge lever
+            DeathDate = null,
             LitterId = litterId,
             SaleStatus = KittenStatus.Available,
         };
@@ -241,6 +251,21 @@ internal sealed class CatHandler(
             }
         }
     }
+
+    /// <summary>En kastrert katt kan ikke få kattunger, så den kan ikke være i avl. Pensjonert og kastrert er det vanlige.</summary>
+    private static void ValidateNeutered(CatRole role, bool neutered)
+    {
+        if (role == CatRole.Breeding && neutered)
+        {
+            throw new ValidationException("Neutered: a neutered cat cannot be in breeding. Set the role to Retired.");
+        }
+    }
+
+    /// <summary>En dødsdato betyr at katten er død, selv om avkrysningen mangler.</summary>
+    private static bool IsDeceased(bool deceased, DateOnly? deathDate) => deceased || deathDate != null;
+
+    /// <summary>Datoen bare hvis katten er død. Fjernes avkrysningen igjen, forsvinner datoen også.</summary>
+    private static DateOnly? DeathDateIf(bool deceased, DateOnly? deathDate) => IsDeceased(deceased, deathDate) ? deathDate : null;
 
     private static void ValidateDeathDate(DateOnly birthDate, DateOnly? deathDate, DateTimeOffset now)
     {
@@ -310,6 +335,7 @@ internal sealed class CatHandler(
             Neutered = cat.Neutered,
             RegistrationNumber = cat.RegistrationNumber,
             Titles = cat.Titles,
+            Deceased = cat.Deceased,
             DeathDate = cat.DeathDate,
             LitterId = cat.LitterId,
             SaleStatus = cat.SaleStatus,

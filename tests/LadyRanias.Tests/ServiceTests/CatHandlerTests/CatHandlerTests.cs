@@ -486,6 +486,69 @@ public sealed class CatHandlerTests
     }
 
     [TestMethod]
+    public async Task Cat_can_be_created_as_deceased_without_date_and_comes_last_in_memorial()
+    {
+        // Mange av de gamle kattene husker man ikke dødsdatoen til.
+        var withDate = await _handler.CreateAsync(NewAdult() with { Name = "Mira", DeathDate = new DateOnly(2025, 3, 1) }, CancellationToken.None);
+        var withoutDate = await _handler.CreateAsync(NewAdult() with { Name = "Gamle Tussi", Deceased = true }, CancellationToken.None);
+
+        Assert.IsTrue(withoutDate.Deceased);
+        Assert.IsNull(withoutDate.DeathDate);
+        Assert.IsTrue(withDate.Deceased); // en dato betyr død, også uten avkrysning
+
+        var memorial = await _handler.GetInMemoryAsync(CancellationToken.None);
+        Assert.HasCount(2, memorial);
+        Assert.AreEqual(withDate.Id, memorial[0].Id);
+        Assert.AreEqual(withoutDate.Id, memorial[1].Id);
+        Assert.IsFalse((await _handler.GetOwnAsync(CancellationToken.None)).Any(c => c.Id == withoutDate.Id));
+    }
+
+    [TestMethod]
+    public async Task Unchecking_deceased_removes_the_date_too()
+    {
+        var cat = await _handler.CreateAsync(NewAdult() with { DeathDate = new DateOnly(2025, 3, 1) }, CancellationToken.None);
+
+        // Satt på feil katt. Mamma fjerner avkrysningen, og skjemaet sender ingen dato.
+        var alive = await _handler.UpdateAsync(cat.Id, UpdateFrom(cat, cat.Role) with { Deceased = false, DeathDate = null }, CancellationToken.None);
+
+        Assert.IsNotNull(alive);
+        Assert.IsFalse(alive.Deceased);
+        Assert.IsNull(alive.DeathDate);
+    }
+
+    [TestMethod]
+    public async Task Neutered_cat_cannot_be_in_breeding()
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { Role = CatRole.Breeding, Neutered = true }, CancellationToken.None));
+
+        var cat = await _handler.CreateAsync(NewAdult(), CancellationToken.None);
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(cat.Id, UpdateFrom(cat, CatRole.Breeding) with { Neutered = true }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    [DataRow(CatRole.Retired)]
+    [DataRow(CatRole.External)]
+    public async Task Neutered_is_fine_for_other_roles(CatRole role)
+    {
+        var cat = await _handler.CreateAsync(NewAdult() with { Role = role, Neutered = true }, CancellationToken.None);
+
+        Assert.IsTrue(cat.Neutered);
+    }
+
+    [TestMethod]
+    public async Task Neutered_kitten_is_fine()
+    {
+        // Noen kastrerer kattunger som selges som familiekatter, før de flytter.
+        var kitten = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask"), CancellationToken.None);
+
+        var neutered = await _handler.UpdateAsync(kitten.Id, UpdateFrom(kitten, CatRole.Kitten) with { Neutered = true }, CancellationToken.None);
+
+        Assert.IsTrue(neutered?.Neutered);
+    }
+
+    [TestMethod]
     public async Task Death_before_birth_is_rejected()
     {
         var cat = NewAdult();

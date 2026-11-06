@@ -27,7 +27,7 @@ export default function CatPage() {
   // Valgt bilde, eller det nyeste hvis ingen er valgt ennå.
   const current = list.find(i => i.imageId === selectedId) ?? list[0]
   const isKitten = c.role === 'Kitten'
-  const deceased = c.deathDate != null
+  const deceased = c.deceased
   const sale = isKitten && c.saleStatus && !deceased ? kittenStatusBadge(c.saleStatus) : null
 
   // Bare det som er fylt ut. En kattunge har ofte ikke farge eller EMS-kode ennå.
@@ -108,7 +108,7 @@ export default function CatPage() {
             <Group gap="xs">
               {sale && <Badge color={sale.color}>{sale.label}</Badge>}
               <Badge variant="light">{sexLabel(c.sex)}</Badge>
-              {c.deathDate ? (
+              {deceased ? (
                 <Badge variant="outline" color="gray">
                   {lifeYears(c.birthDate, c.deathDate)}
                 </Badge>
@@ -123,7 +123,7 @@ export default function CatPage() {
             </Group>
             <Text c="dimmed">
               Født {formatDate(c.birthDate)}
-              {c.deathDate && ` · Død ${formatDate(c.deathDate)}`}
+              {deceased && (c.deathDate ? ` · Død ${formatDate(c.deathDate)}` : ' · Død')}
             </Text>
 
             {litter.data && (

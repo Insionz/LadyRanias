@@ -24,6 +24,7 @@ public record CatTableEntity : ITableEntity
     public bool? Neutered { get; set; }
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
+    public bool? Deceased { get; set; }
     public DateTime? DeathDate { get; set; }
     public ETag ETag { get; set; } = ETag.All;
 }

@@ -22,7 +22,8 @@ export type Cat = {
   neutered: boolean
   registrationNumber?: string | null
   titles?: string | null
-  deathDate?: string | null // null = lever
+  deceased: boolean // død, med eller uten dato
+  deathDate?: string | null // ofte ukjent for de gamle kattene
   litterId?: string | null // satt = født her, i dette kullet
   saleStatus?: KittenStatus | null // bare for kattunger
 }
@@ -50,6 +51,7 @@ export type Kitten = {
   breed: Breed
   emsCode?: string | null
   color?: string | null
+  deceased: boolean
   deathDate?: string | null
 }
 

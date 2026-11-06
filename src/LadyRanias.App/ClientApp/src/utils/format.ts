@@ -70,9 +70,10 @@ export function formatDate(isoDate: string) {
   return dateFormat.format(parseDate(isoDate))
 }
 
-/** «2012–2026». Til minnesiden. Samme år to ganger blir bare ett. */
-export function lifeYears(birthDate: string, deathDate: string) {
+/** «2012–2026». Til minnesiden. Samme år to ganger blir bare ett. Uten dødsdato: «f. 2012». */
+export function lifeYears(birthDate: string, deathDate?: string | null) {
   const born = birthDate.slice(0, 4)
+  if (!deathDate) return `f. ${born}`
   const died = deathDate.slice(0, 4)
   return born === died ? born : `${born}–${died}`
 }

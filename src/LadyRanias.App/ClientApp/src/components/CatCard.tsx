@@ -31,7 +31,7 @@ export default function CatCard({ cat }: { cat: Cat }) {
           {nameWithTitles(cat.name, cat.titles)}
         </Text>
         <Group gap={4} wrap="nowrap">
-          {cat.role === 'Retired' && !cat.deathDate && (
+          {cat.role === 'Retired' && !cat.deceased && (
             <Badge variant="outline" color="gray">
               Pensjonert
             </Badge>
@@ -41,7 +41,7 @@ export default function CatCard({ cat }: { cat: Cat }) {
       </Group>
 
       <Text size="sm" c="dimmed" mb="xs">
-        {[cat.deathDate ? lifeYears(cat.birthDate, cat.deathDate) : ageLabel(cat.birthDate), breedLine(cat.breed, cat.color)]
+        {[cat.deceased ? lifeYears(cat.birthDate, cat.deathDate) : ageLabel(cat.birthDate), breedLine(cat.breed, cat.color)]
           .filter(Boolean)
           .join(' · ')}
       </Text>

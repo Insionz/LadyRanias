@@ -76,7 +76,7 @@ export default function AdminCats() {
                 </Table.Td>
                 <Table.Td>
                   {roleLabel(cat.role)}
-                  {cat.deathDate && (
+                  {cat.deceased && (
                     <Badge ml="xs" variant="outline" color="gray">
                       Død
                     </Badge>

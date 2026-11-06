@@ -21,7 +21,11 @@ public sealed record CatDto
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
 
-    /// <summary>null = lever. En død katt slettes ikke: den er fortsatt mor eller far i kullene sine, og vises på minnesiden.</summary>
+    /// <summary>
+    /// En død katt slettes ikke: den er fortsatt mor eller far i kullene sine, og vises på minnesiden.
+    /// Datoen er valgfri, for for mange av de gamle kattene husker man den ikke.
+    /// </summary>
+    public bool Deceased { get; set; }
     public DateOnly? DeathDate { get; set; }
 
     /// <summary>Satt hvis katten er født her. Da er den (eller har vært) en kattunge i dette kullet.</summary>
@@ -49,6 +53,9 @@ public sealed record CreateCatDto
     [StringLength(60)] public string? RegistrationNumber { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
 
+    /// <summary>Død, med eller uten dato. En dødsdato betyr at katten er død, også om Deceased ikke er satt.</summary>
+    public bool Deceased { get; set; }
+
     /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
     public DateOnly? DeathDate { get; set; }
 }
@@ -71,6 +78,9 @@ public sealed record UpdateCatDto
     public bool Neutered { get; set; }
     [StringLength(60)] public string? RegistrationNumber { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
+
+    /// <summary>Død, med eller uten dato. En dødsdato betyr at katten er død, også om Deceased ikke er satt.</summary>
+    public bool Deceased { get; set; }
 
     /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
     public DateOnly? DeathDate { get; set; }

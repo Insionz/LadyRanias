@@ -72,6 +72,7 @@ public sealed class TableCatDatabaseTests
             Neutered = true,
             RegistrationNumber = "NO*LadyRanias Bjarte",
             Titles = "IC",
+            Deceased = true,
             DeathDate = new DateOnly(2026, 2, 3),
         };
 
@@ -104,6 +105,30 @@ public sealed class TableCatDatabaseTests
         Assert.AreEqual(Breed.Unknown, cat.Breed);
         Assert.AreEqual(expectedRole, cat.Role);
         Assert.IsFalse(cat.Neutered);
+    }
+
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task Cat_saved_with_only_death_date_is_deceased(bool hasDeathDate)
+    {
+        // Slik ser en rad ut fra før «død uten dato» fantes: bare DeathDate, ingen Deceased-kolonne.
+        var id = Guid.NewGuid();
+        await _serviceClient.GetTableClient(_tableName).UpsertEntityAsync(new CatTableEntity
+        {
+            PartitionKey = "cat",
+            RowKey = id.ToString(),
+            Name = "Gammel",
+            Sex = "Female",
+            BirthDate = new DateTime(2010, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CreatedAt = DateTimeOffset.UtcNow,
+            DeathDate = hasDeathDate ? new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc) : null,
+        });
+
+        var cat = await _database.GetAsync(id, CancellationToken.None);
+
+        Assert.IsNotNull(cat);
+        Assert.AreEqual(hasDeathDate, cat.Deceased);
     }
 
     [TestMethod]

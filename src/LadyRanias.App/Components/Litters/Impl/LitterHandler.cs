@@ -255,6 +255,7 @@ internal sealed class LitterHandler(
             Breed = kitten.Breed,
             EmsCode = kitten.EmsCode,
             Color = kitten.Color,
+            Deceased = kitten.Deceased,
             DeathDate = kitten.DeathDate,
         };
     }
