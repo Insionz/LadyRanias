@@ -33,4 +33,4 @@ param emailSenderAddress = 'DoNotReply@33e68950-6cce-46dc-9af3-35a8b7bb7f78.azur
 // Da havner de verken i git, i fila eller i historikken til terminalen.
 param entraClientSecret = readEnvironmentVariable('ENTRA_CLIENT_SECRET', '')
 param emailConnectionString = readEnvironmentVariable('EMAIL_CONNECTION_STRING', '')
-param emailNotifyAddress = readEnvironmentVariable('EMAIL_NOTIFY_ADDRESS', '')
+param emailNotifyAddress = 'kontakt@ladyranias.no'
