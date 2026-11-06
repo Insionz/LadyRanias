@@ -81,8 +81,15 @@ export async function uploadFile<T>(url: string, file: File): Promise<T> {
   return (await response.json()) as T
 }
 
+/** Hvem bildet tilhører: en katt (også kattunger) eller et helt kull. Adressene er ellers like. */
+export type ImageOwner = 'cats' | 'litters'
+
+export function imageUrl(owner: ImageOwner, ownerId: string, imageId: string, size: ImageSize) {
+  return `/api/public/${owner}/${ownerId}/images/${imageId}?size=${size}`
+}
+
 export function catImageUrl(catId: string, imageId: string, size: ImageSize) {
-  return `/api/public/cats/${catId}/images/${imageId}?size=${size}`
+  return imageUrl('cats', catId, imageId, size)
 }
 
 type State<T> = {

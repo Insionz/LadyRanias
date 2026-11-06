@@ -17,8 +17,18 @@ internal sealed class CatHandler(
 
     public async Task<IReadOnlyList<CatDto>> GetOwnAsync(CancellationToken cancellationToken)
     {
-        return await GetWhereAsync(cat => cat.Role is CatRole.Breeding or CatRole.Retired, cancellationToken);
+        return await GetWhereAsync(cat => IsOwn(cat) && cat.DeathDate == null, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<CatDto>> GetInMemoryAsync(CancellationToken cancellationToken)
+    {
+        var deceased = await GetWhereAsync(cat => IsOwn(cat) && cat.DeathDate != null, cancellationToken);
+
+        return [.. deceased.OrderByDescending(cat => cat.DeathDate)];
+    }
+
+    /// <summary>Våre egne voksne katter. Ikke kattunger (de står i kullet) og ikke eksterne.</summary>
+    private static bool IsOwn(CatEntity cat) => cat.Role is CatRole.Breeding or CatRole.Retired;
 
     private async Task<IReadOnlyList<CatDto>> GetWhereAsync(Func<CatEntity, bool> filter, CancellationToken cancellationToken)
     {
@@ -43,6 +53,7 @@ internal sealed class CatHandler(
         var timeNow = timeProvider.GetUtcNow();
 
         Validate(newCat.Sex, newCat.BirthDate, newCat.Breed, newCat.EmsCode, timeNow);
+        ValidateDeathDate(newCat.BirthDate, newCat.DeathDate, timeNow);
 
         if (newCat.Role == CatRole.Kitten)
         {
@@ -64,6 +75,7 @@ internal sealed class CatHandler(
             Neutered = newCat.Neutered,
             RegistrationNumber = Clean(newCat.RegistrationNumber),
             Titles = Clean(newCat.Titles),
+            DeathDate = newCat.DeathDate,
         };
 
         await database.SaveAsync(cat, cancellationToken);
@@ -82,6 +94,7 @@ internal sealed class CatHandler(
 
         // Samme regler som ved opprettelse.
         Validate(update.Sex, update.BirthDate, update.Breed, update.EmsCode, timeProvider.GetUtcNow());
+        ValidateDeathDate(update.BirthDate, update.DeathDate, timeProvider.GetUtcNow());
         ValidateRoleChange(cat, update.Role);
 
         // «with» lager en kopi med de nye verdiene. Id, CreatedAt, LitterId og SaleStatus følger med uendret.
@@ -98,6 +111,7 @@ internal sealed class CatHandler(
             Neutered = update.Neutered,
             RegistrationNumber = Clean(update.RegistrationNumber),
             Titles = Clean(update.Titles),
+            DeathDate = update.DeathDate,
         };
 
         await database.SaveAsync(updatedCat, cancellationToken);
@@ -159,6 +173,7 @@ internal sealed class CatHandler(
             Neutered = newKitten.Neutered,
             RegistrationNumber = Clean(newKitten.RegistrationNumber),
             Titles = Clean(newKitten.Titles),
+            DeathDate = null, // en ny kattunge lever
             LitterId = litterId,
             SaleStatus = KittenStatus.Available,
         };
@@ -227,6 +242,24 @@ internal sealed class CatHandler(
         }
     }
 
+    private static void ValidateDeathDate(DateOnly birthDate, DateOnly? deathDate, DateTimeOffset now)
+    {
+        if (deathDate == null)
+        {
+            return;
+        }
+
+        if (deathDate < birthDate)
+        {
+            throw new ValidationException("DeathDate cannot be before BirthDate");
+        }
+
+        if (deathDate > DateOnly.FromDateTime(now.UtcDateTime))
+        {
+            throw new ValidationException("DeathDate must be today or before");
+        }
+    }
+
     /// <summary>
     /// Kitten → voksen: bare en beholdt kattunge kan bli avlskatt eller pensjonist. En solgt kattunge bor ikke her.
     /// Voksen → Kitten: bare en katt som er født i et kull hos oss.
@@ -277,6 +310,7 @@ internal sealed class CatHandler(
             Neutered = cat.Neutered,
             RegistrationNumber = cat.RegistrationNumber,
             Titles = cat.Titles,
+            DeathDate = cat.DeathDate,
             LitterId = cat.LitterId,
             SaleStatus = cat.SaleStatus,
         };

@@ -75,6 +75,7 @@ internal sealed class TableCatDatabase : ICatDatabase
             Neutered = entity.Neutered,
             RegistrationNumber = entity.RegistrationNumber,
             Titles = entity.Titles,
+            DeathDate = entity.DeathDate?.ToDateTime(new TimeOnly(), DateTimeKind.Utc),
         };
     }
 
@@ -100,6 +101,7 @@ internal sealed class TableCatDatabase : ICatDatabase
             Neutered = cat.Neutered ?? false,
             RegistrationNumber = cat.RegistrationNumber,
             Titles = cat.Titles,
+            DeathDate = cat.DeathDate == null ? null : DateOnly.FromDateTime(cat.DeathDate.Value),
         };
     }
 }

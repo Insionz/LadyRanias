@@ -11,7 +11,8 @@ namespace LadyRanias.App.Components.Litters.Impl;
 internal sealed class LitterHandler(
     ILitterDatabase litters,
     ICatHandler cats,
-    TimeProvider timeProvider) : ILitterHandler
+    TimeProvider timeProvider,
+    IEnumerable<ILitterDeletedListener> deletedListeners) : ILitterHandler
 {
     public async Task<IReadOnlyList<LitterDto>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -99,6 +100,12 @@ internal sealed class LitterHandler(
         foreach (var kitten in kittensInLitter)
         {
             await cats.DeleteAsync(kitten.Id, CancellationToken.None);
+        }
+
+        // Bildene av hele kullet (CatImages).
+        foreach (var listener in deletedListeners)
+        {
+            await listener.OnLitterDeletedAsync(id, CancellationToken.None);
         }
 
         return true;
@@ -248,6 +255,7 @@ internal sealed class LitterHandler(
             Breed = kitten.Breed,
             EmsCode = kitten.EmsCode,
             Color = kitten.Color,
+            DeathDate = kitten.DeathDate,
         };
     }
 }

@@ -59,6 +59,9 @@ public sealed record KittenDto
     public Breed Breed { get; set; }
     public string? EmsCode { get; set; }
     public string? Color { get; set; }
+
+    /// <summary>En kattunge som ikke klarte seg. Den offentlige kullsiden viser den ikke.</summary>
+    public DateOnly? DeathDate { get; set; }
 }
 
 public sealed record CreateLitterDto

@@ -17,6 +17,7 @@ internal sealed record CatEntity
     public bool Neutered { get; set; }
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
+    public DateOnly? DeathDate { get; set; }
     public Guid? LitterId { get; set; }
     public KittenStatus? SaleStatus { get; set; }
 }

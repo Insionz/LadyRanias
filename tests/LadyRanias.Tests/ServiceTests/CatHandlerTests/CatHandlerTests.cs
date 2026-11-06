@@ -464,6 +464,59 @@ public sealed class CatHandlerTests
             () => _handler.SetSaleStatusAsync(kitten.Id, KittenStatus.Available, CancellationToken.None));
     }
 
+    // ---------- Døde katter og minnesiden ----------
+
+    [TestMethod]
+    public async Task Deceased_cat_leaves_our_cats_and_shows_in_memorial_latest_first()
+    {
+        var mira = await _handler.CreateAsync(NewAdult() with { Name = "Mira", DeathDate = new DateOnly(2025, 3, 1) }, CancellationToken.None);
+        var tara = await _handler.CreateAsync(NewAdult() with { Name = "Tara", DeathDate = new DateOnly(2026, 6, 1) }, CancellationToken.None);
+
+        var own = await _handler.GetOwnAsync(CancellationToken.None);
+        var memorial = await _handler.GetInMemoryAsync(CancellationToken.None);
+
+        Assert.IsFalse(own.Any(c => c.Id == mira.Id || c.Id == tara.Id));
+        Assert.HasCount(2, memorial);
+        Assert.AreEqual(tara.Id, memorial[0].Id); // sist døde først
+        Assert.AreEqual(mira.Id, memorial[1].Id);
+
+        // Admin ser dem fortsatt, og de kan fortsatt slås opp, for eksempel som mor i et gammelt kull.
+        Assert.HasCount(4, await _handler.GetAllAsync(CancellationToken.None));
+        Assert.IsNotNull(await _handler.GetAsync(mira.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Death_before_birth_is_rejected()
+    {
+        var cat = NewAdult();
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(cat with { DeathDate = cat.BirthDate.AddDays(-1) }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Death_in_the_future_is_rejected()
+    {
+        var tomorrow = DateOnly.FromDateTime(Start.UtcDateTime).AddDays(1);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { DeathDate = tomorrow }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Update_can_set_and_clear_death_date()
+    {
+        var cat = await _handler.CreateAsync(NewAdult(), CancellationToken.None);
+        var died = new DateOnly(2026, 1, 1);
+
+        var deceased = await _handler.UpdateAsync(cat.Id, UpdateFrom(cat, cat.Role) with { DeathDate = died }, CancellationToken.None);
+        Assert.AreEqual(died, deceased?.DeathDate);
+
+        // Feil katt? Mamma kan angre.
+        var alive = await _handler.UpdateAsync(cat.Id, UpdateFrom(cat, cat.Role) with { DeathDate = null }, CancellationToken.None);
+        Assert.IsNull(alive?.DeathDate);
+    }
+
     /// <summary>Husker hvilke katter den har fått beskjed om, så testen kan sjekke at CatHandler sier fra.</summary>
     private sealed class RecordingListener : ICatDeletedListener
     {

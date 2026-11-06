@@ -72,6 +72,7 @@ public sealed class TableCatDatabaseTests
             Neutered = true,
             RegistrationNumber = "NO*LadyRanias Bjarte",
             Titles = "IC",
+            DeathDate = new DateOnly(2026, 2, 3),
         };
 
         await _database.SaveAsync(cat, CancellationToken.None);

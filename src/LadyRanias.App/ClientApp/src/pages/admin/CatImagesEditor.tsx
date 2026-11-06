@@ -1,16 +1,28 @@
 import { useState } from 'react'
-import { Alert, FileInput, Image, SimpleGrid, Stack, Text } from '@mantine/core'
-import { catImageUrl, send, uploadFile, useApi } from '../../api/api'
+import { Alert, FileInput, Image, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
+import { imageUrl, send, uploadFile, useApi, type ImageOwner } from '../../api/api'
 import ConfirmButton from '../../components/ConfirmButton'
 import type { CatImage } from '../../types/types'
+import { formatDate } from '../../utils/format'
+import { ageInWeeks, dateAtWeek, weekLabel } from '../../utils/imageWeeks'
 
 const maxBytes = 10 * 1024 * 1024 // samme grense som i backend
+const today = new Date().toISOString().slice(0, 10)
 
-/** Bildene til en katt. Virker også for kattunger, for de er katter med samme id. */
-export default function CatImagesEditor({ catId }: { catId: string }) {
-  const images = useApi<CatImage[]>(`/api/public/cats/${catId}/images`)
+type Props = {
+  /** Katt (også kattunge) eller hele kullet. */
+  owner?: ImageOwner
+  ownerId: string
+  /** Fødselsdatoen til kattungen eller kullet. Da velges uke i stedet for dato. */
+  birthDate?: string | null
+}
+
+/** Bildene til en katt, en kattunge eller et kull. Kattunger er katter med samme id, så de bruker «cats». */
+export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate }: Props) {
+  const images = useApi<CatImage[]>(`/api/public/${owner}/${ownerId}/images`)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const adminUrl = `/api/admin/${owner}/${ownerId}/images`
 
   async function upload(files: File[]) {
     setError(null)
@@ -24,7 +36,7 @@ export default function CatImagesEditor({ catId }: { catId: string }) {
     try {
       // Ett og ett bilde, så en feil på ett ikke stopper de andre fra å bli forsøkt.
       for (const file of files) {
-        await uploadFile(`/api/admin/cats/${catId}/images`, file)
+        await uploadFile(adminUrl, file)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Opplastingen feilet')
@@ -37,11 +49,28 @@ export default function CatImagesEditor({ catId }: { catId: string }) {
   async function remove(imageId: string) {
     setError(null)
     try {
-      await send('DELETE', `/api/admin/cats/${catId}/images/${imageId}`)
+      await send('DELETE', `${adminUrl}/${imageId}`)
       images.reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kunne ikke slette')
     }
+  }
+
+  async function setTakenAt(imageId: string, takenAt: string) {
+    setError(null)
+    try {
+      await send('PUT', `${adminUrl}/${imageId}`, { takenAt })
+      images.reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kunne ikke lagre datoen')
+    }
+  }
+
+  // Uke 0–16 dekker en kattunge fra fødsel til den flytter. Er bildet eldre, legges uka til i lista.
+  function weekOptions(current: number) {
+    const weeks = Array.from({ length: 17 }, (_, i) => i)
+    if (current > 16) weeks.push(current)
+    return weeks.map(w => ({ value: String(w), label: weekLabel(w) }))
   }
 
   return (
@@ -50,7 +79,11 @@ export default function CatImagesEditor({ catId }: { catId: string }) {
 
       <FileInput
         label="Last opp bilder"
-        description="JPEG, PNG eller WebP, maks 10 MB. Posisjon og annen metadata fjernes automatisk."
+        description={
+          birthDate
+            ? 'Uka regnes ut fra datoen bildet ble tatt. Står den feil, kan du rette den under bildet.'
+            : 'JPEG, PNG eller WebP, maks 10 MB. Posisjon og annen metadata fjernes automatisk.'
+        }
         placeholder={uploading ? 'Laster opp …' : 'Velg bilder'}
         accept="image/jpeg,image/png,image/webp"
         multiple
@@ -62,19 +95,40 @@ export default function CatImagesEditor({ catId }: { catId: string }) {
       {images.data && images.data.length === 0 && <Text c="dimmed">Ingen bilder ennå.</Text>}
 
       <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="sm">
-        {images.data?.map((image, index) => (
-          <Stack key={image.imageId} gap={4}>
-            <Image src={catImageUrl(catId, image.imageId, 'thumb')} radius="sm" h={120} alt="" />
-            <Stack gap={2} align="flex-start">
-              {index === 0 && (
-                <Text size="xs" c="dimmed">
-                  Vises først
-                </Text>
+        {images.data?.map((image, index) => {
+          const weeks = birthDate ? ageInWeeks(birthDate, image.takenAt) : null
+          return (
+            <Stack key={image.imageId} gap={4}>
+              <Image src={imageUrl(owner, ownerId, image.imageId, 'thumb')} radius="sm" h={120} alt="" />
+              {weeks !== null && birthDate ? (
+                <Select
+                  size="xs"
+                  aria-label="Uke"
+                  allowDeselect={false}
+                  value={String(weeks)}
+                  data={weekOptions(weeks)}
+                  onChange={value => value !== null && void setTakenAt(image.imageId, dateAtWeek(birthDate, Number(value)))}
+                />
+              ) : (
+                <TextInput
+                  size="xs"
+                  type="date"
+                  aria-label="Tatt"
+                  max={today}
+                  value={image.takenAt}
+                  onChange={e => e.currentTarget.value && void setTakenAt(image.imageId, e.currentTarget.value)}
+                />
               )}
-              <ConfirmButton label="Slett" question="Slette bildet?" onConfirm={() => remove(image.imageId)} />
+              <Stack gap={2} align="flex-start">
+                <Text size="xs" c="dimmed">
+                  {index === 0 ? 'Vises først · ' : ''}
+                  {formatDate(image.takenAt)}
+                </Text>
+                <ConfirmButton label="Slett" question="Slette bildet?" onConfirm={() => remove(image.imageId)} />
+              </Stack>
             </Stack>
-          </Stack>
-        ))}
+          )
+        })}
       </SimpleGrid>
     </Stack>
   )

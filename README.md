@@ -40,6 +40,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
 | 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | ✅ |
 | 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | ✅ |
+| 15 | Minneside: døde katter får dødsdato og egen side, i stedet for å bli slettet | ✅ |
+| 16 | Bilder per uke: datoen bildet ble tatt (fra kameraet), «Uke 5» på kattungebilder, og bilder av hele kullet | ✅ |
 
 ## Utsatt til senere
 
@@ -1030,6 +1032,53 @@ Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
 - [ ] En beholdt kattunge kan bli avlskatt ved å endre rollen, uten å kopieres
 - [ ] Alle katter i prod har rase
 - [ ] Alle tester er grønne
+
+---
+
+## Steg 15: Minneside
+
+**Mål:** En katt som dør, slettes ikke. Den er fortsatt mor eller far i kullene sine, og bildene er verdt å ta vare på.
+Den får en dødsdato og flyttes til en egen side, «Til minne».
+
+**Hvorfor en dato og ikke en ny rolle?** Rollen sier fortsatt hva katten *var* (i avl eller pensjonert), og datoen gir
+årstallene på minnesiden («2012–2026»). `null` betyr at katten lever, så alle katter som finnes fra før, virker som før.
+
+- [x] `DeathDate` (`DateOnly?`) i DTO-ene, entiteten og tabellen. Regler: ikke før fødselsdatoen, ikke i framtiden.
+      Kan fjernes igjen hvis den ble satt på feil katt.
+- [x] `GetOwnAsync` (Våre katter) viser bare levende katter. `GetInMemoryAsync` (`GET api/public/cats/memorial`) viser
+      de døde, sist døde først. Admin ser alle, merket «Død».
+- [x] Mor og far i kullene vises som før, med lenke til kattesiden. Kattesiden viser årstall i stedet for alder.
+- [x] Siden `/minne`, med lenke nederst på «Våre katter» når det finnes noen der. Den står ikke i menyen.
+- [x] Kattunger som dør, vises ikke på den offentlige kullsiden, og heller ikke på minnesiden. Admin ser dem, merket «Død».
+- [x] Dødsdato settes i det vanlige skjemaet («Rediger»), både for katter og kattunger
+
+---
+
+## Steg 16: Bilder per uke, og bilder av hele kullet
+
+**Mål:** Oppdrettere tar bilder av kattungene i uke 3, 5, 8 og så videre, både av hver kattunge og av hele kullet.
+Siden viser «Uke 5» under bildene, så man ser kattungene vokse.
+
+**Hvorfor en dato og ikke et ukenummer?** Datoen er det som faktisk er sant, og uka regnes ut fra den og fødselsdatoen.
+Den kan også fylles inn av seg selv: mobilkameraer lagrer datoen i bildet (EXIF), og den leses før metadataen fjernes.
+
+### Del 1: Når bildet ble tatt
+- [x] `TakenAt` (`DateOnly?`) på bildet. Ved opplasting: datoen fra kameraet, ellers opplastingsdagen.
+      Bilder fra før dette fantes, regnes som tatt den dagen de ble lastet opp.
+- [x] `ExifDate` leser `DateTimeOriginal` (eller `DateTime`) fra en JPEG selv, uten et eget bibliotek. Alt som ser rart
+      ut, gir `null`. Testene bygger en minimal JPEG med EXIF i begge byte-rekkefølger, og kutter den på hver posisjon.
+- [x] Bildene sorteres sist tatt først, så kortet på kullsiden viser hvordan kattungen ser ut nå
+- [x] `PUT api/admin/cats/{id}/images/{imageId}` retter datoen. Ikke i framtiden.
+- [x] Admin: for kattunger og kull velges uka fra en liste (Nyfødt, Uke 1–16). Uka gjøres om til en dato.
+      For voksne katter er det et vanlig datofelt.
+- [x] Kattesiden grupperer bildene per uke når katten er født her
+
+### Del 2: Bilder av hele kullet
+- [x] Bildene lagres likt for en katt og et kull: eierens id er `PartitionKey`, og filene ligger under `{eier}/…`.
+      Begge er Guid-er, så de kolliderer aldri. Bare sjekken av at eieren finnes, er forskjellig.
+- [x] `api/admin/litters/{id}/images` og `api/public/litters/{id}/images`, med de samme handlingene som for katter
+- [x] `ILitterDeletedListener` i Litters, på samme måte som `ICatDeletedListener`: når et kull slettes, sletter CatImages bildene
+- [x] Admin: «Bilder av kullet» på hvert kull. Kullsiden viser «Hele kullet» gruppert per uke, og bildet åpnes stort ved trykk.
 
 ---
 

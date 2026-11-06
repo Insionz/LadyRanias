@@ -2,7 +2,7 @@ import { Badge, Card, Group, Image, Text } from '@mantine/core'
 import { Link } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import type { Cat, CatImage } from '../types/types'
-import { ageLabel, breedLine, nameWithTitles, sexLabel } from '../utils/format'
+import { ageLabel, breedLine, lifeYears, nameWithTitles, sexLabel } from '../utils/format'
 
 export default function CatCard({ cat }: { cat: Cat }) {
   const { data: images } = useApi<CatImage[]>(`/api/public/cats/${cat.id}/images`)
@@ -31,7 +31,7 @@ export default function CatCard({ cat }: { cat: Cat }) {
           {nameWithTitles(cat.name, cat.titles)}
         </Text>
         <Group gap={4} wrap="nowrap">
-          {cat.role === 'Retired' && (
+          {cat.role === 'Retired' && !cat.deathDate && (
             <Badge variant="outline" color="gray">
               Pensjonert
             </Badge>
@@ -41,7 +41,9 @@ export default function CatCard({ cat }: { cat: Cat }) {
       </Group>
 
       <Text size="sm" c="dimmed" mb="xs">
-        {[ageLabel(cat.birthDate), breedLine(cat.breed, cat.color)].filter(Boolean).join(' · ')}
+        {[cat.deathDate ? lifeYears(cat.birthDate, cat.deathDate) : ageLabel(cat.birthDate), breedLine(cat.breed, cat.color)]
+          .filter(Boolean)
+          .join(' · ')}
       </Text>
 
       <Text size="sm" lineClamp={3}>

@@ -25,6 +25,7 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
   const [kittenSex, setKittenSex] = useState<Sex | null>(null)
   const [imagesFor, setImagesFor] = useState<Kitten | null>(null)
   const [editing, setEditing] = useState<Kitten | null>(null)
+  const [litterImagesOpen, setLitterImagesOpen] = useState(false)
 
   /** Kjører en handling mot API-et, viser feilen hvis den feiler, og laster lista på nytt hvis den lykkes. */
   async function run(action: () => Promise<unknown>) {
@@ -79,11 +80,16 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
               {litter.birthDate && ` · Født ${formatDate(litter.birthDate)}`}
             </Text>
           </div>
-          <ConfirmButton
-            label="Slett kull"
-            question={`Slette ${litter.name}? Kattungene slettes også.`}
-            onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}`))}
-          />
+          <Group gap="xs">
+            <Button size="xs" variant="light" onClick={() => setLitterImagesOpen(true)}>
+              Bilder av kullet
+            </Button>
+            <ConfirmButton
+              label="Slett kull"
+              question={`Slette ${litter.name}? Kattungene og bildene slettes også.`}
+              onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}`))}
+            />
+          </Group>
         </Group>
 
         {error && <Alert color="red">{error}</Alert>}
@@ -117,7 +123,14 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                       const options = [kitten.status, ...nextKittenStatuses(kitten.status)]
                       return (
                         <Table.Tr key={kitten.id}>
-                          <Table.Td fw={600}>{kitten.name}</Table.Td>
+                          <Table.Td fw={600}>
+                            {kitten.name}
+                            {kitten.deathDate && (
+                              <Badge ml="xs" variant="outline" color="gray">
+                                Død
+                              </Badge>
+                            )}
+                          </Table.Td>
                           <Table.Td>{sexLabel(kitten.sex)}</Table.Td>
                           <Table.Td w={180}>
                             {/* Bare lovlige overganger vises. Er den solgt, er det ingenting å velge. */}
@@ -193,9 +206,14 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
         )}
       </Modal>
 
+      {/* Fellesbilder av hele kullet. Samme editor, men bildene hører til kullet og ikke til én kattunge. */}
+      <Modal opened={litterImagesOpen} onClose={() => setLitterImagesOpen(false)} title={`Bilder av ${litter.name}`} size="lg">
+        {litterImagesOpen && <CatImagesEditor owner="litters" ownerId={litter.id} birthDate={litter.birthDate} />}
+      </Modal>
+
       {/* Samme bildeeditor som for de voksne kattene. En kattunge er en katt, med samme id. */}
       <Modal opened={imagesFor !== null} onClose={() => setImagesFor(null)} title={`Bilder av ${imagesFor?.name ?? ''}`} size="lg">
-        {imagesFor && <CatImagesEditor key={imagesFor.id} catId={imagesFor.id} />}
+        {imagesFor && <CatImagesEditor key={imagesFor.id} ownerId={imagesFor.id} birthDate={litter.birthDate} />}
       </Modal>
     </Card>
   )

@@ -6,7 +6,8 @@ import Parents from '../components/Parents'
 import { ErrorMessage, Loading } from '../components/Status'
 import type { Cat, CatImage, Litter } from '../types/types'
 import { contactLink } from '../utils/contactLink'
-import { ageLabel, breedLabel, formatDate, kittenStatusBadge, nameWithTitles, sexLabel } from '../utils/format'
+import { groupByWeek } from '../utils/imageWeeks'
+import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, nameWithTitles, sexLabel } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 
 export default function CatPage() {
@@ -26,7 +27,8 @@ export default function CatPage() {
   // Valgt bilde, eller det nyeste hvis ingen er valgt ennå.
   const current = list.find(i => i.imageId === selectedId) ?? list[0]
   const isKitten = c.role === 'Kitten'
-  const sale = isKitten && c.saleStatus ? kittenStatusBadge(c.saleStatus) : null
+  const deceased = c.deathDate != null
+  const sale = isKitten && c.saleStatus && !deceased ? kittenStatusBadge(c.saleStatus) : null
 
   // Bare det som er fylt ut. En kattunge har ofte ikke farge eller EMS-kode ennå.
   const facts: [string, string][] = [
@@ -42,7 +44,11 @@ export default function CatPage() {
     <>
       <title>{`${c.name} – LadyRanias`}</title>
 
-      {isKitten ? (
+      {deceased && !isKitten ? (
+        <Anchor component={Link} to="/minne" size="sm">
+          ← Til minne
+        </Anchor>
+      ) : isKitten ? (
         <Anchor component={Link} to="/kull" size="sm">
           ← Kull og kattunger
         </Anchor>
@@ -64,25 +70,34 @@ export default function CatPage() {
             fit="contain"
           />
 
-          {list.length > 1 && (
-            <SimpleGrid cols={{ base: 4, sm: 6 }} spacing="xs" mt="sm">
-              {list.map(image => (
-                <UnstyledButton
-                  key={image.imageId}
-                  onClick={() => setSelectedId(image.imageId)}
-                  aria-label="Vis dette bildet"
-                  aria-pressed={image.imageId === current?.imageId}
-                  style={{
-                    borderRadius: 'var(--mantine-radius-sm)',
-                    outline: image.imageId === current?.imageId ? '2px solid var(--mantine-primary-color-filled)' : 'none',
-                    outlineOffset: 2,
-                  }}
-                >
-                  <Image src={catImageUrl(c.id, image.imageId, 'thumb')} radius="sm" h={64} alt="" loading="lazy" />
-                </UnstyledButton>
-              ))}
-            </SimpleGrid>
-          )}
+          {/* Født her: bildene gruppert per uke, så man ser kattungen vokse. Ellers én rad med bilder. */}
+          {list.length > 1 &&
+            (c.litterId ? groupByWeek(list, c.birthDate) : [{ weeks: 0, label: '', images: list }]).map(group => (
+              <Box key={group.label} mt="sm">
+                {group.label && (
+                  <Text size="sm" fw={600} mb={4}>
+                    {group.label}
+                  </Text>
+                )}
+                <SimpleGrid cols={{ base: 4, sm: 6 }} spacing="xs">
+                  {group.images.map(image => (
+                    <UnstyledButton
+                      key={image.imageId}
+                      onClick={() => setSelectedId(image.imageId)}
+                      aria-label="Vis dette bildet"
+                      aria-pressed={image.imageId === current?.imageId}
+                      style={{
+                        borderRadius: 'var(--mantine-radius-sm)',
+                        outline: image.imageId === current?.imageId ? '2px solid var(--mantine-primary-color-filled)' : 'none',
+                        outlineOffset: 2,
+                      }}
+                    >
+                      <Image src={catImageUrl(c.id, image.imageId, 'thumb')} radius="sm" h={64} alt="" loading="lazy" />
+                    </UnstyledButton>
+                  ))}
+                </SimpleGrid>
+              </Box>
+            ))}
         </Box>
 
         <Box>
@@ -93,14 +108,23 @@ export default function CatPage() {
             <Group gap="xs">
               {sale && <Badge color={sale.color}>{sale.label}</Badge>}
               <Badge variant="light">{sexLabel(c.sex)}</Badge>
-              <Badge variant="outline">{ageLabel(c.birthDate)}</Badge>
-              {c.role === 'Retired' && (
+              {c.deathDate ? (
+                <Badge variant="outline" color="gray">
+                  {lifeYears(c.birthDate, c.deathDate)}
+                </Badge>
+              ) : (
+                <Badge variant="outline">{ageLabel(c.birthDate)}</Badge>
+              )}
+              {c.role === 'Retired' && !deceased && (
                 <Badge variant="outline" color="gray">
                   Pensjonert
                 </Badge>
               )}
             </Group>
-            <Text c="dimmed">Født {formatDate(c.birthDate)}</Text>
+            <Text c="dimmed">
+              Født {formatDate(c.birthDate)}
+              {c.deathDate && ` · Død ${formatDate(c.deathDate)}`}
+            </Text>
 
             {litter.data && (
               <Stack gap={2}>
@@ -129,7 +153,7 @@ export default function CatPage() {
               </Table>
             )}
 
-            {c.saleStatus === 'Available' && isKitten && (
+            {c.saleStatus === 'Available' && isKitten && !deceased && (
               <Anchor component={Link} to={contactLink(`Kattungen ${c.name}`)}>
                 Spør om {c.name}
               </Anchor>

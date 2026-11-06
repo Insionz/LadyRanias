@@ -70,6 +70,13 @@ export function formatDate(isoDate: string) {
   return dateFormat.format(parseDate(isoDate))
 }
 
+/** «2012–2026». Til minnesiden. Samme år to ganger blir bare ett. */
+export function lifeYears(birthDate: string, deathDate: string) {
+  const born = birthDate.slice(0, 4)
+  const died = deathDate.slice(0, 4)
+  return born === died ? born : `${born}–${died}`
+}
+
 /** «3 uker», «5 måneder», «2 år» */
 export function ageLabel(isoDate: string, today: Date = new Date()) {
   const born = parseDate(isoDate)

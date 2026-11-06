@@ -1,15 +1,20 @@
 using LadyRanias.App.Components.CatImages.Api;
 using LadyRanias.App.Components.Cats.Api;
+using LadyRanias.App.Components.Litters.Api;
 using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.CatImages.Impl;
 
+// Bildene til en katt og til et kull lagres likt: tabellraden har eierens id som PartitionKey,
+// og filene ligger under «{eier}/{bilde}-thumb.webp». Id-ene er Guid-er, så en katt og et kull kan aldri kollidere.
+// Det eneste som er forskjellig, er hvordan vi sjekker at eieren finnes.
 internal sealed class CatImageHandler(
     ICatImageDatabase imageDatabase,
     IImageStore imageStore,
     IImageProcessor imageProcessor,
     CatImageRemover remover,
     ICatHandler catHandler,
+    ILitterHandler litterHandler,
     TimeProvider timeProvider) : ICatImageHandler
 {
     internal const string ThumbnailSuffix = "thumb";
@@ -18,34 +23,60 @@ internal sealed class CatImageHandler(
     private static readonly HashSet<string> AllowedContentTypes = ["image/jpeg", "image/png", "image/webp"];
     private const long MaxSize = 10 * 1024 * 1024;
 
-    public async Task<CatImageDto?> UploadAsync(Guid catId, Stream content, string contentType, long length, CancellationToken cancellationToken)
+    public Task<CatImageDto?> UploadAsync(Guid catId, Stream content, string contentType, long length, CancellationToken cancellationToken) =>
+        UploadForOwnerAsync(catId, ct => CatExistsAsync(catId, ct), content, contentType, length, cancellationToken);
+
+    public Task<CatImageDto?> UploadForLitterAsync(Guid litterId, Stream content, string contentType, long length, CancellationToken cancellationToken) =>
+        UploadForOwnerAsync(litterId, ct => LitterExistsAsync(litterId, ct), content, contentType, length, cancellationToken);
+
+    public Task<IReadOnlyList<CatImageDto>?> GetAllAsync(Guid catId, CancellationToken cancellationToken) =>
+        GetAllForOwnerAsync(catId, ct => CatExistsAsync(catId, ct), cancellationToken);
+
+    public Task<IReadOnlyList<CatImageDto>?> GetAllForLitterAsync(Guid litterId, CancellationToken cancellationToken) =>
+        GetAllForOwnerAsync(litterId, ct => LitterExistsAsync(litterId, ct), cancellationToken);
+
+    private async Task<bool> CatExistsAsync(Guid catId, CancellationToken cancellationToken) =>
+        await catHandler.GetAsync(catId, cancellationToken) != null;
+
+    private async Task<bool> LitterExistsAsync(Guid litterId, CancellationToken cancellationToken) =>
+        await litterHandler.GetAsync(litterId, cancellationToken) != null;
+
+    private async Task<CatImageDto?> UploadForOwnerAsync(
+        Guid ownerId,
+        Func<CancellationToken, Task<bool>> ownerExists,
+        Stream content,
+        string contentType,
+        long length,
+        CancellationToken cancellationToken)
     {
         Validate(contentType, length);
 
-        var cat = await catHandler.GetAsync(catId, cancellationToken);
-
-        if (cat == null) return null;
+        if (!await ownerExists(cancellationToken)) return null;
 
         // Kaster ValidationException hvis fila ikke er et ekte bilde.
         var processed = await imageProcessor.ProcessAsync(content, cancellationToken);
 
         var imageId = Guid.NewGuid();
-        var thumbnailName = BlobName(catId, imageId, ThumbnailSuffix);
-        var largeName = BlobName(catId, imageId, LargeSuffix);
+        var thumbnailName = BlobName(ownerId, imageId, ThumbnailSuffix);
+        var largeName = BlobName(ownerId, imageId, LargeSuffix);
         var now = timeProvider.GetUtcNow();
+
+        // Datoen fra kameraet, ellers i dag. Mamma kan rette den etterpå (SetTakenAtAsync).
+        var image = new CatImageEntity
+        {
+            CatId = ownerId,
+            ImageId = imageId,
+            ContentType = processed.ContentType,
+            CreatedAt = now,
+            TakenAt = processed.TakenAt ?? DateOnly.FromDateTime(now.UtcDateTime),
+        };
 
         try
         {
             await SaveBytesAsync(thumbnailName, processed.Thumbnail, processed.ContentType, cancellationToken);
             await SaveBytesAsync(largeName, processed.Large, processed.ContentType, cancellationToken);
 
-            await imageDatabase.SaveAsync(new CatImageEntity
-            {
-                CatId = catId,
-                ImageId = imageId,
-                ContentType = processed.ContentType,
-                CreatedAt = now,
-            }, cancellationToken);
+            await imageDatabase.SaveAsync(image, cancellationToken);
         }
         catch
         {
@@ -56,40 +87,56 @@ internal sealed class CatImageHandler(
             throw;
         }
 
-        return new CatImageDto
-        {
-            ImageId = imageId,
-            CreatedAt = now,
-        };
+        return ToDto(image);
     }
 
-    public async Task<IReadOnlyList<CatImageDto>?> GetAllAsync(Guid catId, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<CatImageDto>?> GetAllForOwnerAsync(
+        Guid ownerId,
+        Func<CancellationToken, Task<bool>> ownerExists,
+        CancellationToken cancellationToken)
     {
-        var cat = await catHandler.GetAsync(catId, cancellationToken);
+        if (!await ownerExists(cancellationToken)) return null;
 
-        if (cat == null) return null;
+        var images = await imageDatabase.GetAllForCatAsync(ownerId, cancellationToken);
 
-        var images = await imageDatabase.GetAllForCatAsync(catId, cancellationToken);
-
-        return [.. images.OrderByDescending(image => image.CreatedAt).Select(ToDto)];
+        // Sist tatt først, så kortet på kullsiden viser hvordan kattungen ser ut nå.
+        // Samme dag: sist lastet opp først.
+        return [.. images.Select(ToDto).OrderByDescending(image => image.TakenAt).ThenByDescending(image => image.CreatedAt)];
     }
 
-    public async Task<CatImageFile?> OpenAsync(Guid catId, Guid imageId, CatImageSize size, CancellationToken cancellationToken)
+    public async Task<CatImageFile?> OpenAsync(Guid ownerId, Guid imageId, CatImageSize size, CancellationToken cancellationToken)
     {
         // Sjekk raden først, så vi bare viser bilder som faktisk er registrert.
-        var image = await imageDatabase.GetAsync(catId, imageId, cancellationToken);
+        var image = await imageDatabase.GetAsync(ownerId, imageId, cancellationToken);
 
         if (image == null) return null;
 
-        var stored = await imageStore.OpenAsync(BlobName(catId, imageId, Suffix(size)), cancellationToken);
+        var stored = await imageStore.OpenAsync(BlobName(ownerId, imageId, Suffix(size)), cancellationToken);
 
         return stored == null ? null : new CatImageFile(stored.Content, stored.ContentType);
     }
 
-    public Task<bool> DeleteAsync(Guid catId, Guid imageId, CancellationToken cancellationToken) =>
-        remover.DeleteImageAsync(catId, imageId, cancellationToken);
+    public async Task<CatImageDto?> SetTakenAtAsync(Guid ownerId, Guid imageId, DateOnly takenAt, CancellationToken cancellationToken)
+    {
+        var image = await imageDatabase.GetAsync(ownerId, imageId, cancellationToken);
 
-    internal static string BlobName(Guid catId, Guid imageId, string suffix) => $"{catId}/{imageId}-{suffix}.webp";
+        if (image == null) return null;
+
+        if (takenAt > DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime))
+        {
+            throw new ValidationException("TakenAt must be today or before");
+        }
+
+        image.TakenAt = takenAt;
+        await imageDatabase.SaveAsync(image, cancellationToken);
+
+        return ToDto(image);
+    }
+
+    public Task<bool> DeleteAsync(Guid ownerId, Guid imageId, CancellationToken cancellationToken) =>
+        remover.DeleteImageAsync(ownerId, imageId, cancellationToken);
+
+    internal static string BlobName(Guid ownerId, Guid imageId, string suffix) => $"{ownerId}/{imageId}-{suffix}.webp";
 
     private static string Suffix(CatImageSize size) => size switch
     {
@@ -102,6 +149,8 @@ internal sealed class CatImageHandler(
     {
         ImageId = image.ImageId,
         CreatedAt = image.CreatedAt,
+        // Bilder fra før datoen fantes, regnes som tatt den dagen de ble lastet opp.
+        TakenAt = image.TakenAt ?? DateOnly.FromDateTime(image.CreatedAt.UtcDateTime),
     };
 
     private async Task SaveBytesAsync(string name, byte[] bytes, string contentType, CancellationToken cancellationToken)

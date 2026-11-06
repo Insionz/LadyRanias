@@ -6,6 +6,7 @@ import classes from './App.module.css'
 import HomePage from './pages/HomePage'
 import CatsPage from './pages/CatsPage'
 import CatPage from './pages/CatPage'
+import MemorialPage from './pages/MemorialPage'
 import LittersPage from './pages/LittersPage'
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/katter" element={<CatsPage />} />
           <Route path="/katter/:id" element={<CatPage />} />
+          <Route path="/minne" element={<MemorialPage />} />
           <Route path="/kull" element={<LittersPage />} />
           <Route path="/kontakt" element={<ContactPage />} />
           {/* Står ikke i menyen. Tilgangen styres av API-et, ikke av om lenken vises. */}
