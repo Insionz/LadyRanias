@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { Alert, Badge, Button, Card, Group, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { send } from '../../api/api'
 import ConfirmButton from '../../components/ConfirmButton'
+import CatImagesEditor from './CatImagesEditor'
 import type { Cat, Kitten, KittenStatus, Litter, Sex } from '../../types/types'
 import { formatDate, kittenStatusBadge, sexLabel } from '../../utils/format'
 import { nextKittenStatuses } from '../../utils/kittenRules'
@@ -20,6 +21,7 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
   const [birthDate, setBirthDate] = useState(today)
   const [kittenName, setKittenName] = useState('')
   const [kittenSex, setKittenSex] = useState<Sex | null>(null)
+  const [imagesFor, setImagesFor] = useState<Kitten | null>(null)
 
   /** Kjører en handling mot API-et, viser feilen hvis den feiler, og laster lista på nytt hvis den lykkes. */
   async function run(action: () => Promise<unknown>) {
@@ -128,7 +130,10 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                             />
                           </Table.Td>
                           <Table.Td>
-                            <Group justify="flex-end">
+                            <Group justify="flex-end" gap="xs">
+                              <Button size="xs" variant="light" onClick={() => setImagesFor(kitten)}>
+                                Bilder
+                              </Button>
                               <ConfirmButton
                                 label="Slett"
                                 question={`Slette ${kitten.name}?`}
@@ -166,6 +171,11 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
           </>
         )}
       </Stack>
+
+      {/* Samme bildeeditor som for de voksne kattene. En kattunge er en katt, med samme id. */}
+      <Modal opened={imagesFor !== null} onClose={() => setImagesFor(null)} title={`Bilder av ${imagesFor?.name ?? ''}`} size="lg">
+        {imagesFor && <CatImagesEditor key={imagesFor.id} catId={imagesFor.id} />}
+      </Modal>
     </Card>
   )
 }

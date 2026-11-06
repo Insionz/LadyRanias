@@ -12,7 +12,69 @@ internal sealed class CatHandler(
     {
         var allCats = await database.GetAllAsync(cancellationToken);
 
-        return allCats.OrderByDescending(cat => cat.CreatedAt).Select(ToDto).ToList();
+        // Kattungene vises i kullet sitt, ikke blant de voksne kattene.
+        // (Del 2 bytter dette ut med Role, så en beholdt kattunge kan bli avlskatt.)
+        return allCats
+            .Where(cat => cat.LitterId == null)
+            .OrderByDescending(cat => cat.CreatedAt)
+            .Select(ToDto)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<CatDto>> GetByLitterAsync(Guid litterId, CancellationToken cancellationToken)
+    {
+        // Henter alle og filtrerer i minnet. Med noen titalls katter er det raskere enn det høres ut,
+        // og enklere enn en egen indeks på LitterId.
+        var allCats = await database.GetAllAsync(cancellationToken);
+
+        return allCats
+            .Where(cat => cat.LitterId == litterId)
+            .OrderBy(cat => cat.CreatedAt)
+            .Select(ToDto)
+            .ToList();
+    }
+
+    public async Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken)
+    {
+        var timeNow = timeProvider.GetUtcNow();
+
+        Validate(newKitten.Sex, newKitten.BirthDate, timeNow);
+
+        var kitten = new CatEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = newKitten.Name,
+            Sex = newKitten.Sex,
+            Description = newKitten.Description,
+            BirthDate = newKitten.BirthDate,
+            CreatedAt = timeNow,
+            LitterId = litterId,
+            SaleStatus = KittenStatus.Available,
+        };
+
+        await database.SaveAsync(kitten, cancellationToken);
+
+        return ToDto(kitten);
+    }
+
+    public async Task<CatDto?> SetSaleStatusAsync(Guid id, KittenStatus status, CancellationToken cancellationToken)
+    {
+        var cat = await database.GetAsync(id, cancellationToken);
+
+        if (cat == null)
+        {
+            return null;
+        }
+
+        if (cat.LitterId == null)
+        {
+            throw new ValidationException("Only kittens have a sale status");
+        }
+
+        var changed = cat with { SaleStatus = status };
+        await database.SaveAsync(changed, cancellationToken);
+
+        return ToDto(changed);
     }
 
     public async Task<CatDto?> GetAsync(Guid id, CancellationToken cancellationToken)
@@ -111,6 +173,8 @@ internal sealed class CatHandler(
             Description = newCat.Description,
             BirthDate = newCat.BirthDate,
             CreatedAt = newCat.CreatedAt,
+            LitterId = newCat.LitterId,
+            SaleStatus = newCat.SaleStatus,
         };
     }
 }

@@ -13,7 +13,6 @@ public static class LittersComponent
     {
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<ILitterDatabase, TableLitterDatabase>();
-        builder.Services.AddSingleton<IKittenDatabase, TableKittenDatabase>();
         builder.Services.AddSingleton<ILitterHandler, LitterHandler>();
 
         return builder;

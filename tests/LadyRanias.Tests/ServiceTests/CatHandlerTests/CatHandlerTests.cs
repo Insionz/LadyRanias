@@ -246,6 +246,95 @@ public sealed class CatHandlerTests
         Assert.IsNull(result);
     }
 
+    // ---------- Kattunger ----------
+
+    private static CreateCatDto NewKitten(string name) => new()
+    {
+        Name = name,
+        Sex = SexEnum.Female,
+        BirthDate = new DateOnly(2026, 10, 1),
+        Description = string.Empty,
+    };
+
+    [TestMethod]
+    public async Task Kittens_are_not_in_get_all_but_in_get_by_litter_oldest_first()
+    {
+        var litterId = Guid.NewGuid();
+        var first = await _handler.CreateKittenAsync(litterId, NewKitten("Ask"), CancellationToken.None);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var second = await _handler.CreateKittenAsync(litterId, NewKitten("Embla"), CancellationToken.None);
+        await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("I et annet kull"), CancellationToken.None);
+
+        var all = await _handler.GetAllAsync(CancellationToken.None);
+        Assert.HasCount(2, all); // bare Kiara og Børre
+
+        var inLitter = await _handler.GetByLitterAsync(litterId, CancellationToken.None);
+        Assert.HasCount(2, inLitter);
+        Assert.AreEqual(first.Id, inLitter[0].Id);
+        Assert.AreEqual(second.Id, inLitter[1].Id);
+    }
+
+    [TestMethod]
+    public async Task Create_kitten_is_available_and_belongs_to_litter()
+    {
+        var litterId = Guid.NewGuid();
+
+        var kitten = await _handler.CreateKittenAsync(litterId, NewKitten("Ask"), CancellationToken.None);
+
+        Assert.AreEqual(litterId, kitten.LitterId);
+        Assert.AreEqual(KittenStatus.Available, kitten.SaleStatus);
+        Assert.AreEqual(kitten, await _handler.GetAsync(kitten.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Create_kitten_with_unknown_sex_is_rejected()
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask") with { Sex = SexEnum.Unknown }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Set_sale_status_changes_kitten()
+    {
+        var kitten = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask"), CancellationToken.None);
+
+        var reserved = await _handler.SetSaleStatusAsync(kitten.Id, KittenStatus.Reserved, CancellationToken.None);
+
+        Assert.IsNotNull(reserved);
+        Assert.AreEqual(KittenStatus.Reserved, reserved.SaleStatus);
+    }
+
+    [TestMethod]
+    public async Task Set_sale_status_on_adult_cat_is_rejected()
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.SetSaleStatusAsync(_cats[0].Id, KittenStatus.Sold, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Set_sale_status_on_unknown_cat_returns_null()
+    {
+        Assert.IsNull(await _handler.SetSaleStatusAsync(Guid.NewGuid(), KittenStatus.Sold, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Update_kitten_keeps_litter_and_sale_status()
+    {
+        var kitten = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask"), CancellationToken.None);
+
+        var updated = await _handler.UpdateAsync(kitten.Id, new UpdateCatDto
+        {
+            Name = "Ask Nytt Navn",
+            Sex = kitten.Sex,
+            BirthDate = kitten.BirthDate,
+            Description = "Endret",
+        }, CancellationToken.None);
+
+        Assert.IsNotNull(updated);
+        Assert.AreEqual(kitten.LitterId, updated.LitterId);
+        Assert.AreEqual(KittenStatus.Available, updated.SaleStatus);
+    }
+
     /// <summary>Husker hvilke katter den har fått beskjed om, så testen kan sjekke at CatHandler sier fra.</summary>
     private sealed class RecordingListener : ICatDeletedListener
     {

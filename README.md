@@ -39,6 +39,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
 | 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
 | 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | ✅ |
+| 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | Planlagt |
 
 ## Utsatt til senere
 
@@ -950,6 +951,73 @@ i måneden, noen få titalls kroner. Sjekk gjerne prisen i Azure-priskalkulatore
 **Det kan være lurt å slå opp:** «ASP.NET Core health checks», `IHealthCheck`, «liveness vs readiness»,
 «Container Apps health probes», «Azure Monitor OpenTelemetry Distro», «Application Insights standard availability test»,
 «Azure Monitor action group», «log search alert».
+
+---
+
+## Steg 14: Kattunger er katter, og katter får flere opplysninger
+
+**Mål:** Kattungene får bilder og alle de samme opplysningene som de voksne kattene, og hver katt har rase, farge og
+opplysningene fra stamtavlen. Mamma driver med **Maine Coon** (EMS `MCO`) og **Hellig Birma** (EMS `SBI`), og registrerer
+i Webkatten (NRR, som er med i FIFe). Derfor bruker vi **EMS-koder**.
+
+**Hvorfor nå?** Det finnes ingen kattunger i prod ennå. Da er det ingen data å flytte når `Kitten` forsvinner.
+
+### Modellen
+
+En kattunge er en katt som er født i et kull. Det er ikke en egen type.
+
+| Felt | Type | Merknad |
+|---|---|---|
+| `Breed` | `Breed` (enum) | `Unknown`, `MaineCoon`, `SacredBirman`. `Unknown` avvises ved lagring, som `SexEnum.Unknown`. Katter som finnes fra før, leses som `Unknown` til mamma har satt rasen. |
+| `Role` | `CatRole` (enum) | `Breeding`, `Retired`, `Kitten`, `External`. `External` er en lånt hannkatt fra et annet oppdrett: kan være far i et kull, men vises ikke blant mammas katter. |
+| `EmsCode` | `string?` | «MCO n 22», «SBI a 21». Valgfri, for Birma-kattunger fødes nesten hvite og fargen viser seg først etter noen uker. Er den fylt ut, må den begynne med riktig rasekode. |
+| `Color` | `string?` | Fargen i vanlige ord, til å lese |
+| `Neutered` | `bool` | Eget felt, for en pensjonert katt kan være kastrert eller ikke, og rollen sier noe annet |
+| `RegistrationNumber` | `string?` | Fra stamtavlen |
+| `Titles` | `string?` | Utstillingstitler, «IC», «GIC» |
+| `LitterId` | `Guid?` | Satt = født her, i dette kullet |
+| `SaleStatus` | `KittenStatus?` | Ledig, reservert, solgt, beholdt. Bare for kattunger. Enumen ligger i Cats, men reglene (`KittenStatusRules`) blir i Litters. |
+
+**Hvem eier hva?** Cats eier katten, også kattungene. Litters eier kullet og bruker `ICatHandler` for å lage, hente og
+slette kattungene, på samme måte som den allerede slår opp mor og far. Avhengigheten går fortsatt bare én vei:
+Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
+
+### Del 1: Slå sammen kattunger og katter
+- [x] `CatDto`, `CatEntity` og `CatTableEntity` får `LitterId` og `SaleStatus` (nullbare, så eksisterende katter leses som før)
+- [x] `ICatHandler` får `GetByLitterAsync`, `CreateKittenAsync` og `SetSaleStatusAsync`
+- [x] `GetAllAsync` viser ikke kattungene. De vises i kullet sitt.
+- [x] `KittenStatus` flyttes til `Cats.Api`. `KittenStatusRules` blir i Litters: Litters sjekker regelen, Cats lagrer.
+      Da trenger ikke Cats å vite noe om salg av kattunger, og `InvalidStateException` kan bli der den er.
+- [x] `LitterHandler.AddKittenAsync` lager en katt med `LitterId` og fødselsdatoen til kullet
+- [x] Endre eller slette en kattunge sjekker at den hører til kullet i adressen. Ellers kunne man endret en voksen katt,
+      eller en kattunge i et annet kull.
+- [x] En kattunge kan ikke være mor eller far i et kull
+- [x] Å slette et kull sletter kattungene med `ICatHandler.DeleteAsync`, så bildene deres ryddes også
+- [x] `KittenEntity`, `KittenTableEntity`, `IKittenDatabase` og de to implementasjonene er fjernet.
+      Tabellen `kittens` i Azure er tom og kan slettes for hånd (Storage → Tables).
+- [x] Rutene i API-et og `KittenDto` beholdes, så den offentlige kullsiden virker uendret
+- [x] Frontend: kattungene viser bilder, og admin har en «Bilder»-knapp per kattunge (samme `CatImagesEditor`, nå med `catId`)
+
+### Del 2: Nye opplysninger om katten
+- [ ] `Breed`, `Role`, `EmsCode`, `Color`, `Neutered`, `RegistrationNumber`, `Titles` i DTO-ene, entiteten og tabellen
+- [ ] Regler: rasen må være satt, EMS-koden må begynne med `MCO` eller `SBI` og passe med rasen
+- [ ] En ny kattunge får `Role = Kitten` og rasen til moren
+- [ ] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
+- [ ] Adminskjemaet får de nye feltene. Rasen og rollen som nedtrekkslister, kastrert som avkrysning.
+- [ ] Katter med `Breed = Unknown` merkes i admin, så mamma ser hvilke som mangler rase
+
+### Del 3: Den offentlige siden
+- [ ] «Våre katter» viser bare `Breeding` og `Retired`, gruppert per rase
+- [ ] Kattesiden viser rase, farge, EMS-kode, titler og foreldre (hvis katten er født her)
+- [ ] Kullsiden viser kattungene med bilde og ledig/reservert/solgt
+
+**Utsatt:** helsetester (HCM, SMA, HD for Maine Coon) med dato per katt, stamtavle over flere generasjoner.
+
+**Ferdig når**
+- [ ] Mamma kan legge inn et kull, legge til kattunger, laste opp bilder av dem og endre status
+- [ ] En beholdt kattunge kan bli avlskatt ved å endre rollen, uten å kopieres
+- [ ] Alle katter i prod har rase
+- [ ] Alle tester er grønne
 
 ---
 

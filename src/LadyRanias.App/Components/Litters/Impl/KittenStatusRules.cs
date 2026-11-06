@@ -1,4 +1,4 @@
-using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Cats.Api;
 
 namespace LadyRanias.App.Components.Litters.Impl;
 

@@ -50,6 +50,17 @@ public sealed class TableCatDatabaseTests
     }
 
     [TestMethod]
+    public async Task Save_then_get_returns_same_kitten()
+    {
+        // LitterId og SaleStatus går fram og tilbake. Katter uten dem (de vanlige) testes over.
+        var kitten = NewCat() with { LitterId = Guid.NewGuid(), SaleStatus = KittenStatus.Reserved };
+
+        await _database.SaveAsync(kitten, CancellationToken.None);
+
+        Assert.AreEqual(kitten, await _database.GetAsync(kitten.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
     public async Task Save_existing_cat_overwrites_it()
     {
         var catRequest = NewCat();

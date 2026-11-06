@@ -10,4 +10,6 @@ internal sealed record CatEntity
     public required DateOnly BirthDate { get; set; }
     public string Description { get; set; } = string.Empty;
     public required DateTimeOffset CreatedAt { get; set; }
+    public Guid? LitterId { get; set; }
+    public KittenStatus? SaleStatus { get; set; }
 }
