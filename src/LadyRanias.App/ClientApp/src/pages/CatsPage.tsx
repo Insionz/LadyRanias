@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Anchor, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core'
-import { Link } from 'react-router'
+import { Group, SegmentedControl, Stack, Text, Title } from '@mantine/core'
 import { useApi } from '../api/api'
 import CatGrid from '../components/CatGrid'
 import { ErrorMessage, Loading } from '../components/Status'
@@ -15,8 +14,6 @@ const breedOrder: Breed[] = ['MaineCoon', 'SacredBirman', 'Unknown']
 export default function CatsPage() {
   // API-et gir bare våre egne katter: i avl og pensjonerte. Kattungene står under Kull.
   const { data: cats, loading, error } = useApi<Cat[]>('/api/public/cats')
-  // Bare for å vite om lenken til minnesiden skal vises.
-  const memorial = useApi<Cat[]>('/api/public/cats/memorial')
   const [filter, setFilter] = useState<Filter>('all')
 
   const shown = cats?.filter(cat => filter === 'all' || cat.sex === filter) ?? []
@@ -69,14 +66,6 @@ export default function CatsPage() {
           </Stack>
         ))}
       </Stack>
-
-      {memorial.data && memorial.data.length > 0 && (
-        <Text ta="center" mt={48} c="dimmed">
-          <Anchor component={Link} to="/minne">
-            Til minne om kattene som ikke er med oss lenger
-          </Anchor>
-        </Text>
-      )}
     </>
   )
 }

@@ -1048,7 +1048,7 @@ Den får en dødsdato og flyttes til en egen side, «Til minne».
 - [x] `GetOwnAsync` (Våre katter) viser bare levende katter. `GetInMemoryAsync` (`GET api/public/cats/memorial`) viser
       de døde, sist døde først. Admin ser alle, merket «Død».
 - [x] Mor og far i kullene vises som før, med lenke til kattesiden. Kattesiden viser årstall i stedet for alder.
-- [x] Siden `/minne`, med lenke nederst på «Våre katter» når det finnes noen der. Den står ikke i menyen.
+- [x] Siden `/minne` er en egen fane i menyen, «Til minne»
 - [x] Kattunger som dør, vises ikke på den offentlige kullsiden, og heller ikke på minnesiden. Admin ser dem, merket «Død».
 - [x] Dødsdato settes i det vanlige skjemaet («Rediger»), både for katter og kattunger
 

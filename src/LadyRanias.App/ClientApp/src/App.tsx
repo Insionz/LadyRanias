@@ -16,6 +16,7 @@ const links = [
   { to: '/', label: 'Hjem' },
   { to: '/katter', label: 'Katter' },
   { to: '/kull', label: 'Kull' },
+  { to: '/minne', label: 'Til minne' },
   { to: '/kontakt', label: 'Kontakt' },
 ]
 
