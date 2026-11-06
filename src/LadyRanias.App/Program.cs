@@ -5,6 +5,7 @@ using LadyRanias.App.Components.Contact;
 using LadyRanias.App.Components.Health;
 using LadyRanias.App.Components.Litters;
 using LadyRanias.App.Components.Storage;
+using LadyRanias.App.Components.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text.Json.Serialization;
 
@@ -36,6 +37,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     }
 });
 
+builder.UseTelemetryComponent();
 builder.UseAuthComponent();
 builder.UseStorage();
 builder.UseHealthComponent();
