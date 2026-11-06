@@ -2,6 +2,7 @@ using LadyRanias.App.Components.Auth;
 using LadyRanias.App.Components.CatImages;
 using LadyRanias.App.Components.Cats;
 using LadyRanias.App.Components.Contact;
+using LadyRanias.App.Components.Health;
 using LadyRanias.App.Components.Litters;
 using LadyRanias.App.Components.Storage;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -37,6 +38,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 builder.UseAuthComponent();
 builder.UseStorage();
+builder.UseHealthComponent();
 builder.UseCatsComponent();
 builder.UseCatImagesComponent();
 builder.UseLittersComponent();
@@ -80,10 +82,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();      // etter innlogging, før controllerne ([EnableRateLimiting] på kontaktskjemaet)
 app.MapControllers();
+app.MapHealthEndpoints();
 // React-ruter som /katter og /admin får index.html, så React kan vise riktig side.
 // nonfile: bare adresser UTEN filendelse. Ellers ville også /assets/index-….js fått index.html,
 //          fordi rutene kjøres før filene leveres (det var feilen i steg 11).
 // regex:   ikke api/... Ukjente API-adresser skal gi 404, ikke en nettside.
-app.MapFallbackToFile("{*path:nonfile:regex(^(?!api/).*$)}", "index.html");
+app.MapFallbackToFile("{*path:nonfile:regex(^(?!api/|health/).*$)}", "index.html");
 
 app.Run();

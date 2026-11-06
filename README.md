@@ -37,8 +37,8 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 9 | Kontaktskjema: validering, spambeskyttelse, kø og bakgrunnsjobb, e-postvarsel via Azure Communication Services | ✅ |
 | 10 | Container-image (Dockerfile, chiseled), bygget på hver PR og publisert til Azure Container Registry fra `main` | ✅ |
 | 11 | Deploy til **test** i Azure Container Apps med Bicep, automatisk fra `main`, managed identity mot Storage og registry | ✅ |
-| 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | Pågår |
-| 13 | Observerbarhet: logger, helseprober, varsler | |
+| 12 | Deploy til **prod** med manuell knapp, eget domene `www.ladyranias.no` fra one.com, gratis HTTPS-sertifikat | ✅ |
+| 13 | Observerbarhet: helseprober, Application Insights (OpenTelemetry), varsler på e-post | Pågår |
 
 ## Utsatt til senere
 
@@ -861,6 +861,79 @@ Varslene kommer i dag fra `DoNotReply@….azurecomm.net`. De kan komme fra `ikke
 
 **Det kan være lurt å slå opp:** «Azure Container Apps custom domain managed certificate», «asuid TXT record»,
 «CNAME vs A record», «apex domain», «workflow_dispatch», «build once deploy many», «SPF record merge».
+
+---
+
+## Steg 13: Observerbarhet
+
+**Mål:** Du får vite at siden er nede *før* moren din eller en kunde merker det, og når noe feiler, kan du se hva som skjedde.
+
+Observerbarhet har tre deler:
+
+| Del | Spørsmålet den svarer på | Hos oss |
+|---|---|---|
+| **Helse** | Lever appen, og kan den nå det den trenger? | `/health/live` og `/health/ready`, brukt av Azure og av varselet |
+| **Telemetri** | Hva skjer inni appen? Hvilke forespørsler, hvor lang tid, hvilke feil? | Application Insights, via OpenTelemetry |
+| **Varsler** | Hvem får beskjed, og når? | E-post til deg når siden er nede, eller når feil hoper seg opp |
+
+### Del 1: Helseprober
+Azure må vite to ting om appen:
+- **Lever den?** (*liveness*) Hvis nei, start den på nytt. Svaret skal bare si at prosessen kjører. Det skal **ikke** sjekke Storage,
+  for hvis Storage er nede, hjelper det ikke å starte appen på nytt. Det gjør det bare verre.
+- **Er den klar?** (*readiness*) Hvis nei, ikke send besøkende dit ennå. Her sjekker vi at appen faktisk når Storage.
+
+- [ ] `builder.Services.AddHealthChecks()` med en sjekk som heter `storage` og er merket `ready`. Den spør Table Storage om én tabell
+      (`TableServiceClient.QueryAsync(maxPerPage: 1)`), så vi vet at managed identity og nettverket virker.
+- [ ] `app.MapHealthChecks("/health/live", …)`: ingen sjekker, bare «prosessen svarer» (`Predicate = _ => false`)
+- [ ] `app.MapHealthChecks("/health/ready", …)`: bare sjekkene merket `ready`
+- [ ] **Fallback-ruten** må ikke ta `/health`. `/health/live` har ingen filendelse, så uten et unntak ville den gitt `index.html`.
+      Legg `health/` til i regex-en, ved siden av `api/`.
+- [ ] Tester: `/health/live` gir 200, `/health/ready` gir 200 (komponenttest) og 503 når sjekken feiler (enhetstest av sjekken)
+- [ ] **Bicep:** `probes` på containeren: `Liveness` mot `/health/live`, `Readiness` mot `/health/ready`, og `Startup` mot
+      `/health/live`, med god tid til oppstart
+
+### Del 2: Application Insights med OpenTelemetry
+**OpenTelemetry** er en åpen standard for telemetri, altså forespørsler, avhengigheter, logger og målinger. Microsoft sin
+anbefalte måte å sende den til Azure er pakken **`Azure.Monitor.OpenTelemetry.AspNetCore`**. Én linje i koden gir:
+- alle forespørsler, med statuskode og tid
+- alle kall til Storage, Entra og e-posttjenesten (*dependencies*)
+- alle `ILogger`-meldinger, også de fra bakgrunnsjobben
+- unntak, med hele stakken
+
+- [ ] Pakken `Azure.Monitor.OpenTelemetry.AspNetCore`
+- [ ] `builder.Services.AddOpenTelemetry().UseAzureMonitor()`, **bare** når `APPLICATIONINSIGHTS_CONNECTION_STRING` er satt.
+      Lokalt, i tester og i CI sendes ingenting.
+- [ ] **Bicep:** én **Application Insights** (`appi-ladyranias`) som lagrer i den samme `log-ladyranias`, og
+      `APPLICATIONINSIGHTS_CONNECTION_STRING` som miljøvariabel på appen
+- [ ] Felles for test og prod, men hver app har sitt eget navn (`cloud_RoleName`), så de kan skilles i grafene.
+      Sett `OTEL_SERVICE_NAME` til `ladyranias-test` og `ladyranias-prod`.
+
+**Personvern:** Application Insights lagrer adresser og IP-adresser. IP-adressen anonymiseres som standard (siste del fjernes).
+Ikke logg innholdet i kontaktmeldinger eller e-postadresser. Logg id-er, slik vi allerede gjør.
+
+### Del 3: Varsler
+- [ ] **Action group** `ag-ladyranias`: hvem som får beskjed, og hvordan. E-post til deg.
+- [ ] **Tilgjengelighet:** en *standard availability test* i Application Insights som henter
+      `https://www.ladyranias.no/health/ready` hvert 15. minutt fra to steder. Feiler den fra begge, får du e-post.
+- [ ] **Feil i appen:** et varsel når det kommer mer enn 5 svar med 5xx i løpet av 15 minutter
+- [ ] **Poison-køen:** et loggvarsel når bakgrunnsjobben skriver «flyttet til poison-køen». Da har et e-postvarsel til
+      moren din feilet fem ganger, og du må se på det.
+- [ ] Alt i Bicep, så det kan gjenskapes
+
+**Hva koster det?** Application Insights og Log Analytics er gratis opp til 5 GB i måneden, og denne appen bruker en
+liten brøkdel av det. Tilgjengelighetstester koster per kjøring. Hvert 15. minutt fra to steder blir omtrent 6 000 kjøringer
+i måneden, noen få titalls kroner. Sjekk gjerne prisen i Azure-priskalkulatoren, for den endres.
+
+**Ferdig når**
+- [ ] `https://www.ladyranias.no/health/ready` svarer `Healthy`
+- [ ] Under **Application Insights → Live metrics** ser du forespørslene mens du klikker rundt på siden
+- [ ] **Transaction search** viser en kontaktmelding hele veien: forespørselen, lagringen, køen, og e-posten som ble sendt
+- [ ] Når du stopper prod-appen (**Container App → Stop**), kommer det en e-post innen ca. 15 minutter. Start den igjen etterpå.
+- [ ] Alle tester er grønne, og alt er i Bicep
+
+**Det kan være lurt å slå opp:** «ASP.NET Core health checks», `IHealthCheck`, «liveness vs readiness»,
+«Container Apps health probes», «Azure Monitor OpenTelemetry Distro», «Application Insights standard availability test»,
+«Azure Monitor action group», «log search alert».
 
 ---
 
