@@ -10,8 +10,18 @@ import { contactLink } from '../utils/contactLink'
 import { groupByWeek } from '../utils/imageWeeks'
 import { parentFromCat, type ParentInfo } from '../utils/parents'
 import { parseTitles } from '../utils/titles'
-import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, nameWithTitles, sexLabel } from '../utils/format'
+import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, sexLabel } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
+
+/** Titlene i navnet: vanlig skrift, mindre og litt sperret, så hver bokstav kan leses. */
+const titleStyle: React.CSSProperties = {
+  fontFamily: 'var(--mantine-font-family)',
+  fontSize: '0.38em',
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  verticalAlign: 'middle',
+  color: 'var(--mantine-color-dimmed)',
+}
 
 export default function CatPage() {
   const { id } = useParams()
@@ -114,8 +124,14 @@ export default function CatPage() {
 
         <Box>
           <Stack gap="sm">
+            {/*
+              Navnet står i skriveskriften, men titlene gjør ikke det: forkortelser som «GIC JC KC» er nesten
+              umulige å lese i en løkkeskrift. De står i vanlig skrift, mindre, på samme plass som i det fulle navnet.
+            */}
             <Title order={2} fz={64} lh={1.1}>
-              {nameWithTitles(c.name, c.titles)}
+              {titles.before.length > 0 && <span style={titleStyle}>{titles.before.map(t => t.text).join(' ')} </span>}
+              {c.name}
+              {titles.after.length > 0 && <span style={titleStyle}> {titles.after.map(t => t.text).join(' ')}</span>}
             </Title>
             <TitleRosettes titles={[...titles.before, ...titles.after]} size={44} />
             <Group gap="xs">
