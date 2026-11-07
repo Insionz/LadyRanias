@@ -201,7 +201,6 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
         </Group>
         <Textarea
           label="Beskrivelse"
-          required
           autosize
           minRows={3}
           value={description}

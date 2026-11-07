@@ -60,6 +60,12 @@ public sealed record KittenDto
     public string? EmsCode { get; set; }
     public string? Color { get; set; }
 
+    /// <summary>
+    /// Kitten for en vanlig kattunge. Noe annet (Breeding, Retired) for en beholdt kattunge som nå er voksen:
+    /// den kan fjernes fra kullet, men ikke slettes herfra, for da ville selve katten blitt slettet.
+    /// </summary>
+    public CatRole Role { get; set; } = CatRole.Kitten;
+
     /// <summary>En kattunge som ikke klarte seg. Den offentlige kullsiden viser den ikke.</summary>
     public bool Deceased { get; set; }
     public DateOnly? DeathDate { get; set; }
@@ -86,6 +92,21 @@ public sealed record CreateKittenDto
     [Required] public required string Name { get; set; }
     public required SexEnum Sex { get; set; }
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>Ledig for et nytt kull. For et gammelt kull kan den legges inn som solgt eller beholdt med en gang.</summary>
+    public KittenStatus Status { get; set; } = KittenStatus.Available;
+}
+
+/// <summary>Kobler en katt som allerede finnes, til kullet. Se ILitterHandler.LinkExistingCatAsync.</summary>
+public sealed record LinkCatDto
+{
+    public required Guid CatId { get; set; }
+
+    /// <summary>
+    /// Har katten en annen fødselsdato enn kullet, avvises koblingen, så mamma ser forskjellen.
+    /// Med true får katten kullets fødselsdato.
+    /// </summary>
+    public bool UseLitterBirthDate { get; set; }
 }
 
 public sealed record ChangeKittenStatusDto

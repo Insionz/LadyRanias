@@ -28,7 +28,16 @@ export default function AdminLitters() {
 
       <Stack>
         {litters.data?.map(litter => (
-          <LitterAdminCard key={litter.id} litter={litter} cats={catsById} onChanged={litters.reload} />
+          <LitterAdminCard
+            key={litter.id}
+            litter={litter}
+            cats={catsById}
+            // Å koble en katt til et kull endrer katten også, så begge listene hentes på nytt.
+            onChanged={() => {
+              litters.reload()
+              cats.reload()
+            }}
+          />
         ))}
       </Stack>
 

@@ -106,6 +106,8 @@ export function kittenStatusBadge(status: KittenStatus): { label: string; color:
       return { label: 'Solgt', color: 'gray' }
     case 'Kept':
       return { label: 'Blir hos oss', color: 'grape' }
+    case 'UnderEvaluation':
+      return { label: 'Under evaluering', color: 'blue' }
   }
 }
 

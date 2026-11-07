@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Alert, Badge, Button, Card, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Badge, Button, Card, Checkbox, Group, Modal, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { send, useApi } from '../../api/api'
 import ConfirmButton from '../../components/ConfirmButton'
 import { ErrorMessage, Loading } from '../../components/Status'
@@ -23,6 +23,9 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
   const [birthDate, setBirthDate] = useState(today)
   const [kittenName, setKittenName] = useState('')
   const [kittenSex, setKittenSex] = useState<Sex | null>(null)
+  const [kittenStatus, setKittenStatus] = useState<KittenStatus>('Available')
+  const [linkCatId, setLinkCatId] = useState<string | null>(null)
+  const [useLitterBirthDate, setUseLitterBirthDate] = useState(false)
   const [imagesFor, setImagesFor] = useState<Kitten | null>(null)
   const [editing, setEditing] = useState<Kitten | null>(null)
   const [litterImagesOpen, setLitterImagesOpen] = useState(false)
@@ -49,11 +52,28 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
   function addKitten(event: FormEvent) {
     event.preventDefault()
     void run(async () => {
-      await send('POST', `/api/admin/litters/${litter.id}/kittens`, { name: kittenName, sex: kittenSex })
+      await send('POST', `/api/admin/litters/${litter.id}/kittens`, { name: kittenName, sex: kittenSex, status: kittenStatus })
       setKittenName('')
       setKittenSex(null)
+      // Statusen beholdes: legger mamma inn et gammelt kull, er gjerne alle solgt.
     })
   }
+
+  function linkCat(event: FormEvent) {
+    event.preventDefault()
+    void run(async () => {
+      await send('POST', `/api/admin/litters/${litter.id}/kittens/link`, { catId: linkCatId, useLitterBirthDate })
+      setLinkCatId(null)
+      setUseLitterBirthDate(false)
+    })
+  }
+
+  // Katter vi har som kan være født i dette kullet: egne voksne katter som ikke hører til et kull, og ikke er mor eller far.
+  const linkable = [...cats.values()]
+    .filter(c => !c.litterId && c.role !== 'Kitten' && c.role !== 'External' && c.id !== litter.motherId && c.id !== litter.fatherId)
+    .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
+  const linkCandidate = linkCatId ? cats.get(linkCatId) : undefined
+  const birthDateDiffers = linkCandidate != null && litter.birthDate != null && linkCandidate.birthDate !== litter.birthDate
 
   function changeStatus(kitten: Kitten, status: KittenStatus) {
     void run(() => send('PUT', `/api/admin/litters/${litter.id}/kittens/${kitten.id}/status`, { status }))
@@ -120,7 +140,9 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                   <Table.Tbody>
                     {litter.kittens.map(kitten => {
                       const badge = kittenStatusBadge(kitten.status)
-                      const options = [kitten.status, ...nextKittenStatuses(kitten.status)]
+                      // En koblet voksen katt (beholdt for lenge siden) har fast status. Den endres ikke her.
+                      const linkedAdult = kitten.role !== 'Kitten'
+                      const options = linkedAdult ? [kitten.status] : [kitten.status, ...nextKittenStatuses(kitten.status)]
                       return (
                         <Table.Tr key={kitten.id}>
                           <Table.Td fw={600}>
@@ -153,11 +175,20 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                               <Button size="xs" variant="light" onClick={() => setImagesFor(kitten)}>
                                 Bilder
                               </Button>
-                              <ConfirmButton
-                                label="Slett"
-                                question={`Slette ${kitten.name}?`}
-                                onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}/kittens/${kitten.id}`))}
-                              />
+                              {linkedAdult ? (
+                                // Katten er en av mammas katter. «Slett» ville slettet selve katten, så her fjernes bare koblingen.
+                                <ConfirmButton
+                                  label="Fjern fra kullet"
+                                  question={`Fjerne ${kitten.name} fra ${litter.name}? Katten finnes fortsatt.`}
+                                  onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}/kittens/${kitten.id}/link`))}
+                                />
+                              ) : (
+                                <ConfirmButton
+                                  label="Slett"
+                                  question={`Slette ${kitten.name}?`}
+                                  onConfirm={() => run(() => send('DELETE', `/api/admin/litters/${litter.id}/kittens/${kitten.id}`))}
+                                />
+                              )}
                             </Group>
                           </Table.Td>
                         </Table.Tr>
@@ -182,11 +213,54 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                     { value: 'Male', label: 'Hannkatt' },
                   ]}
                 />
+                <Select
+                  label="Status"
+                  w={170}
+                  allowDeselect={false}
+                  value={kittenStatus}
+                  onChange={value => value && setKittenStatus(value as KittenStatus)}
+                  data={(['Available', 'UnderEvaluation', 'Reserved', 'Sold', 'Kept'] as KittenStatus[]).map(s => ({
+                    value: s,
+                    label: kittenStatusBadge(s).label,
+                  }))}
+                />
                 <Button type="submit" loading={busy} disabled={!kittenSex}>
                   Legg til
                 </Button>
               </Group>
             </form>
+
+            {/* Gamle kull: en beholdt kattunge ligger ofte inne som voksen katt allerede. Koble den i stedet for å lage en ny. */}
+            {linkable.length > 0 && (
+              <form onSubmit={linkCat}>
+                <Stack gap="xs">
+                  <Group align="flex-end" wrap="wrap">
+                    <Select
+                      label="Eller: en katt vi har, som er født i dette kullet"
+                      placeholder="Velg katt"
+                      searchable
+                      w={300}
+                      value={linkCatId}
+                      onChange={value => {
+                        setLinkCatId(value)
+                        setUseLitterBirthDate(false)
+                      }}
+                      data={linkable.map(c => ({ value: c.id, label: c.name }))}
+                    />
+                    <Button type="submit" variant="light" loading={busy} disabled={!linkCatId || (birthDateDiffers && !useLitterBirthDate)}>
+                      Koble til kullet
+                    </Button>
+                  </Group>
+                  {birthDateDiffers && linkCandidate && litter.birthDate && (
+                    <Checkbox
+                      label={`${linkCandidate.name} er registrert født ${formatDate(linkCandidate.birthDate)}, kullet ${formatDate(litter.birthDate)}. Bruk kullets dato.`}
+                      checked={useLitterBirthDate}
+                      onChange={e => setUseLitterBirthDate(e.currentTarget.checked)}
+                    />
+                  )}
+                </Stack>
+              </form>
+            )}
           </>
         )}
       </Stack>

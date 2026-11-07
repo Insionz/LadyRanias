@@ -71,7 +71,7 @@ internal sealed class CatHandler(
             Id = Guid.NewGuid(),
             Name = newCat.Name,
             Sex = newCat.Sex,
-            Description = newCat.Description,
+            Description = newCat.Description ?? string.Empty, // valgfri, og JSON kan sende null
             BirthDate = newCat.BirthDate,
             CreatedAt = timeNow,
             Breed = newCat.Breed,
@@ -111,7 +111,7 @@ internal sealed class CatHandler(
             Name = update.Name,
             Sex = update.Sex,
             BirthDate = update.BirthDate,
-            Description = update.Description,
+            Description = update.Description ?? string.Empty, // valgfri, og JSON kan sende null
             Breed = update.Breed,
             Role = update.Role,
             EmsCode = Clean(update.EmsCode),
@@ -161,7 +161,7 @@ internal sealed class CatHandler(
             .ToList();
     }
 
-    public async Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken)
+    public async Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken, KittenStatus status = KittenStatus.Available)
     {
         var timeNow = timeProvider.GetUtcNow();
 
@@ -172,7 +172,7 @@ internal sealed class CatHandler(
             Id = Guid.NewGuid(),
             Name = newKitten.Name,
             Sex = newKitten.Sex,
-            Description = newKitten.Description,
+            Description = newKitten.Description ?? string.Empty, // valgfri, og JSON kan sende null
             BirthDate = newKitten.BirthDate,
             CreatedAt = timeNow,
             Breed = newKitten.Breed,
@@ -185,7 +185,7 @@ internal sealed class CatHandler(
             Deceased = false, // en ny kattunge lever
             DeathDate = null,
             LitterId = litterId,
-            SaleStatus = KittenStatus.Available,
+            SaleStatus = status,
         };
 
         await database.SaveAsync(kitten, cancellationToken);
@@ -211,6 +211,48 @@ internal sealed class CatHandler(
         await database.SaveAsync(changed, cancellationToken);
 
         return ToDto(changed);
+    }
+
+    public async Task<CatDto?> AssignToLitterAsync(Guid catId, Guid litterId, DateOnly birthDate, CancellationToken cancellationToken)
+    {
+        var cat = await database.GetAsync(catId, cancellationToken);
+        if (cat == null) return null;
+
+        if (cat.LitterId == litterId)
+        {
+            return ToDto(cat); // allerede koblet, ingenting å gjøre
+        }
+
+        if (cat.LitterId != null)
+        {
+            throw new ValidationException("The cat already belongs to another litter");
+        }
+
+        if (cat.Role is CatRole.Kitten or CatRole.External)
+        {
+            throw new ValidationException("Only our own adult cats can be linked to the litter they were born in");
+        }
+
+        var linked = cat with { LitterId = litterId, SaleStatus = KittenStatus.Kept, BirthDate = birthDate };
+        await database.SaveAsync(linked, cancellationToken);
+
+        return ToDto(linked);
+    }
+
+    public async Task<CatDto?> RemoveFromLitterAsync(Guid catId, CancellationToken cancellationToken)
+    {
+        var cat = await database.GetAsync(catId, cancellationToken);
+        if (cat == null) return null;
+
+        if (cat.Role == CatRole.Kitten)
+        {
+            throw new ValidationException("A kitten cannot be removed from its litter. Delete it instead.");
+        }
+
+        var unlinked = cat with { LitterId = null, SaleStatus = null };
+        await database.SaveAsync(unlinked, cancellationToken);
+
+        return ToDto(unlinked);
     }
 
     /// <summary>Rasekoden i EMS. Første del av en EMS-kode, «MCO n 22».</summary>

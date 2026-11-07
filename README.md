@@ -42,6 +42,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 14 | Kattunger er katter, og katter får rase, rolle, EMS-kode, farge, kastrert og registreringsnummer | ✅ |
 | 15 | Minneside: døde katter får dødsdato og egen side, i stedet for å bli slettet | ✅ |
 | 16 | Bilder per uke: datoen bildet ble tatt (fra kameraet), «Uke 5» på kattungebilder, og bilder av hele kullet | ✅ |
+| 17 | Gamle kull: koble katter vi har til kullet de er født i, status ved innlegging, «Tidligere kull», «Under evaluering» | ✅ |
 
 ## Utsatt til senere
 
@@ -978,7 +979,7 @@ En kattunge er en katt som er født i et kull. Det er ikke en egen type.
 | `RegistrationNumber` | `string?` | Fra stamtavlen |
 | `Titles` | `string?` | Utstillingstitler, «IC», «GIC» |
 | `LitterId` | `Guid?` | Satt = født her, i dette kullet |
-| `SaleStatus` | `KittenStatus?` | Ledig, reservert, solgt, beholdt. Bare for kattunger. Enumen ligger i Cats, men reglene (`KittenStatusRules`) blir i Litters. |
+| `SaleStatus` | `KittenStatus?` | Ledig, reservert, solgt, beholdt, under evaluering (ikke bestemt om den beholdes). Bare for kattunger. Enumen ligger i Cats, men reglene (`KittenStatusRules`) blir i Litters. |
 
 **Hvem eier hva?** Cats eier katten, også kattungene. Litters eier kullet og bruker `ICatHandler` for å lage, hente og
 slette kattungene, på samme måte som den allerede slår opp mor og far. Avhengigheten går fortsatt bare én vei:
@@ -1013,6 +1014,7 @@ Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
 - [x] `GetAllAsync` (admin) viser alle unntatt kattunger, også eksterne. `GetOwnAsync` (offentlig) viser bare `Breeding` og `Retired`.
 - [x] En ny kattunge får `Role = Kitten` og rasen til moren. Mangler moren rase, avvises den med beskjed om å sette rasen først.
 - [x] Mor og far i et kull kan ikke være kattunger, og en far kan være `External`
+- [x] Beskrivelsen er valgfri
 - [x] Adminskjemaet får de nye feltene. Rasen og rollen som nedtrekkslister, kastrert som avkrysning.
       Rollelisten viser bare lovlige valg, med de samme reglene som backend.
 - [x] Kattungene kan redigeres fra kullet («Rediger»), med det samme skjemaet
@@ -1085,6 +1087,29 @@ Den kan også fylles inn av seg selv: mobilkameraer lagrer datoen i bildet (EXIF
 - [x] `api/admin/litters/{id}/images` og `api/public/litters/{id}/images`, med de samme handlingene som for katter
 - [x] `ILitterDeletedListener` i Litters, på samme måte som `ICatDeletedListener`: når et kull slettes, sletter CatImages bildene
 - [x] Admin: «Bilder av kullet» på hvert kull. Kullsiden viser «Hele kullet» gruppert per uke, og bildet åpnes stort ved trykk.
+
+---
+
+## Steg 17: Alle kull fra tidenes morgen
+
+**Mål:** Mamma kan legge inn alle kullene hun har hatt. Mange beholdte kattunger ligger allerede inne som voksne katter,
+og de skal kobles til kullet sitt, ikke legges inn en gang til.
+
+**Anbefalt rekkefølge for mamma:** legg inn kattene først (også de døde og de eksterne hannkattene). Legg så inn kullene,
+eldste først, og koble de beholdte kattene til underveis. Da finnes mor og far allerede.
+
+- [x] **Ny status «Under evaluering»** (`UnderEvaluation`): ikke bestemt om den beholdes. Derfra blir den ledig eller
+      beholdt, og ledig og beholdt kan gå tilbake dit. Den kan ikke reserveres eller selges direkte.
+- [x] **Beskrivelse er valgfri** for katter
+- [x] **Status ved innlegging:** en kattunge i et gammelt kull kan legges inn som solgt eller beholdt med en gang
+- [x] **Koble en katt vi har** til kullet (`POST api/admin/litters/{id}/kittens/link`). Katten beholder rollen og bildene,
+      og får status «Beholdt». Ikke mulig for mor og far, en ekstern katt, eller en katt som allerede hører til et kull.
+      Har katten en annen fødselsdato enn kullet, må mamma velge kullets dato, så forskjellen ikke forsvinner i stillhet.
+- [x] **En koblet katt slettes aldri via kullet.** «Slett» på den gir 409, og i admin står det «Fjern fra kullet» i stedet
+      (`DELETE …/kittens/{id}/link`). Slettes hele kullet, mister den bare koblingen. Det gjelder også en beholdt kattunge
+      som er gjort om til avlskatt.
+- [x] **Tidligere kull** legges sammen nederst på kullsiden, eldste først. Et kull er aktuelt så lenge det er under et
+      halvt år gammelt, eller har kattunger som ikke har fått et hjem. Innholdet hentes først når kullet åpnes.
 
 ---
 

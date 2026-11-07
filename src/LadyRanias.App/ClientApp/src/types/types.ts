@@ -38,7 +38,8 @@ export type ImageSize = 'thumb' | 'large'
 
 export type LitterStatus = 'Planned' | 'Born'
 
-export type KittenStatus = 'Available' | 'Reserved' | 'Sold' | 'Kept'
+/** UnderEvaluation: ikke bestemt ennå om den beholdes eller selges. */
+export type KittenStatus = 'Available' | 'Reserved' | 'Sold' | 'Kept' | 'UnderEvaluation'
 
 export type Kitten = {
   id: string
@@ -51,6 +52,8 @@ export type Kitten = {
   breed: Breed
   emsCode?: string | null
   color?: string | null
+  /** Kitten, eller Breeding/Retired for en beholdt kattunge som nå er voksen (koblet til kullet). */
+  role: CatRole
   deceased: boolean
   deathDate?: string | null
 }

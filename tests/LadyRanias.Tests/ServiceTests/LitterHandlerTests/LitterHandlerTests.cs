@@ -231,6 +231,105 @@ public sealed class LitterHandlerTests
         Assert.AreEqual(_father.Id, fetched.FatherId); // id-en er fortsatt der
     }
 
+    // ---------- Gamle kull: koble katter vi allerede har ----------
+
+    private async Task<CatDto> CreateAdultAsync(string name, DateOnly birthDate) =>
+        await _cats.CreateAsync(NewCat(name, SexEnum.Female) with { BirthDate = birthDate }, CancellationToken.None);
+
+    [TestMethod]
+    public async Task Existing_cat_can_be_linked_to_the_litter_she_was_born_in()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kept = await CreateAdultAsync("Kiara junior", Today);
+
+        var kitten = await _handler.LinkExistingCatAsync(litter.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None);
+
+        Assert.IsNotNull(kitten);
+        Assert.AreEqual(KittenStatus.Kept, kitten.Status);
+        Assert.AreEqual(CatRole.Breeding, kitten.Role); // fortsatt en av våre katter
+
+        var cat = await _cats.GetAsync(kept.Id, CancellationToken.None);
+        Assert.AreEqual(litter.Id, cat?.LitterId);
+        Assert.IsTrue((await _cats.GetOwnAsync(CancellationToken.None)).Any(c => c.Id == kept.Id));
+
+        var fetched = await _handler.GetAsync(litter.Id, CancellationToken.None);
+        Assert.HasCount(1, fetched!.Kittens);
+    }
+
+    [TestMethod]
+    public async Task Linking_with_another_birth_date_is_rejected_unless_the_litter_date_is_chosen()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kept = await CreateAdultAsync("Kiara junior", Today.AddDays(-2));
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.LinkExistingCatAsync(litter.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None));
+
+        await _handler.LinkExistingCatAsync(litter.Id, new LinkCatDto { CatId = kept.Id, UseLitterBirthDate = true }, CancellationToken.None);
+
+        Assert.AreEqual(Today, (await _cats.GetAsync(kept.Id, CancellationToken.None))?.BirthDate);
+    }
+
+    [TestMethod]
+    public async Task Cat_in_another_litter_or_a_parent_cannot_be_linked()
+    {
+        var litterA = await CreateBornLitterAsync();
+        var litterB = await CreateBornLitterAsync();
+        var kept = await CreateAdultAsync("Kiara junior", Today);
+        await _handler.LinkExistingCatAsync(litterA.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.LinkExistingCatAsync(litterB.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.LinkExistingCatAsync(litterB.Id, new LinkCatDto { CatId = _mother.Id, UseLitterBirthDate = true }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Linked_cat_is_not_deleted_with_the_litter_or_as_a_kitten()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kept = await CreateAdultAsync("Kiara junior", Today);
+        await _handler.LinkExistingCatAsync(litter.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None);
+
+        // «Slett» på kattungen skal ikke slette en av mammas katter.
+        await Assert.ThrowsExactlyAsync<InvalidStateException>(
+            () => _handler.DeleteKittenAsync(litter.Id, kept.Id, CancellationToken.None));
+
+        // Slettes hele kullet, mister hun bare koblingen.
+        await _handler.DeleteAsync(litter.Id, CancellationToken.None);
+
+        var cat = await _cats.GetAsync(kept.Id, CancellationToken.None);
+        Assert.IsNotNull(cat);
+        Assert.IsNull(cat.LitterId);
+        Assert.IsNull(cat.SaleStatus);
+    }
+
+    [TestMethod]
+    public async Task Linked_cat_can_be_unlinked_but_a_kitten_cannot()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kept = await CreateAdultAsync("Kiara junior", Today);
+        await _handler.LinkExistingCatAsync(litter.Id, new LinkCatDto { CatId = kept.Id }, CancellationToken.None);
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten(), CancellationToken.None);
+        Assert.IsNotNull(kitten);
+
+        Assert.IsTrue(await _handler.UnlinkCatAsync(litter.Id, kept.Id, CancellationToken.None));
+        Assert.IsNull((await _cats.GetAsync(kept.Id, CancellationToken.None))?.LitterId);
+
+        await Assert.ThrowsExactlyAsync<InvalidStateException>(
+            () => _handler.UnlinkCatAsync(litter.Id, kitten.Id, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Kitten_in_an_old_litter_can_be_added_as_sold()
+    {
+        var litter = await CreateBornLitterAsync();
+
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten() with { Status = KittenStatus.Sold }, CancellationToken.None);
+
+        Assert.AreEqual(KittenStatus.Sold, kitten?.Status);
+    }
+
     [TestMethod]
     public async Task Kitten_in_another_litter_is_not_found()
     {

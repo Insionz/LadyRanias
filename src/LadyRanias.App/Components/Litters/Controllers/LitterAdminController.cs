@@ -67,7 +67,38 @@ public sealed class LitterAdminController(ILitterHandler handler) : ControllerBa
     [HttpDelete("{litterId:guid}/kittens/{kittenId:guid}")]
     public async Task<IActionResult> DeleteKitten(Guid litterId, Guid kittenId, CancellationToken ct)
     {
-        return await handler.DeleteKittenAsync(litterId, kittenId, ct) ? NoContent() : NotFound();
+        try
+        {
+            return await handler.DeleteKittenAsync(litterId, kittenId, ct) ? NoContent() : NotFound();
+        }
+        catch (InvalidStateException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    /// <summary>Kobler en katt vi allerede har (en beholdt kattunge som nå er voksen), til kullet den er født i.</summary>
+    [HttpPost("{litterId:guid}/kittens/link")]
+    public Task<ActionResult<KittenDto>> LinkExistingCat(Guid litterId, LinkCatDto link, CancellationToken ct)
+    {
+        return Run<KittenDto>(async () =>
+        {
+            var kitten = await handler.LinkExistingCatAsync(litterId, link, ct);
+            return kitten == null ? NotFound() : kitten;
+        });
+    }
+
+    [HttpDelete("{litterId:guid}/kittens/{catId:guid}/link")]
+    public async Task<IActionResult> UnlinkCat(Guid litterId, Guid catId, CancellationToken ct)
+    {
+        try
+        {
+            return await handler.UnlinkCatAsync(litterId, catId, ct) ? NoContent() : NotFound();
+        }
+        catch (InvalidStateException ex)
+        {
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
     }
 
     /// <summary>

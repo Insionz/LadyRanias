@@ -40,7 +40,8 @@ public sealed record CreateCatDto
     [Required] public required string Name { get; set; }
     public required DateOnly BirthDate { get; set; }
     public required SexEnum Sex { get; set; }
-    [Required] public required string Description { get; set; }
+    /// <summary>Valgfri. Tom tekst er greit.</summary>
+    public string Description { get; set; } = string.Empty;
     public required Breed Breed { get; set; }
 
     /// <summary>Breeding, Retired eller External. Kattunger lages bare via kullet.</summary>
@@ -66,7 +67,8 @@ public sealed record UpdateCatDto
     [Required] public required string Name { get; set; }
     public required DateOnly BirthDate { get; set; }
     public required SexEnum Sex { get; set; }
-    [Required] public required string Description { get; set; }
+    /// <summary>Valgfri. Tom tekst er greit.</summary>
+    public string Description { get; set; } = string.Empty;
     public required Breed Breed { get; set; }
 
     /// <summary>En beholdt kattunge kan bli Breeding eller Retired. Bare katter født i et kull kan være Kitten.</summary>
@@ -126,4 +128,7 @@ public enum KittenStatus
     Reserved = 1,
     Sold = 2,
     Kept = 3,
+
+    /// <summary>Oppdretteren har ikke bestemt seg: beholdes den, eller skal den selges? Ikke ledig ennå.</summary>
+    UnderEvaluation = 4,
 }

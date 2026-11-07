@@ -24,8 +24,21 @@ public interface ICatHandler
     /// <summary>Kattungene i et kull, eldste først (i den rekkefølgen de ble lagt inn).</summary>
     Task<IReadOnlyList<CatDto>> GetByLitterAsync(Guid litterId, CancellationToken cancellationToken);
 
-    /// <summary>Lager en kattunge: en vanlig katt med Role = Kitten, LitterId og SaleStatus = Available. Role i DTO-en brukes ikke.</summary>
-    Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken);
+    /// <summary>
+    /// Lager en kattunge: en vanlig katt med Role = Kitten og LitterId. Role i DTO-en brukes ikke.
+    /// Status er Available, eller noe annet når et gammelt kull legges inn (Sold, Kept).
+    /// </summary>
+    Task<CatDto> CreateKittenAsync(Guid litterId, CreateCatDto newKitten, CancellationToken cancellationToken, KittenStatus status = KittenStatus.Available);
+
+    /// <summary>
+    /// Kobler en katt som allerede finnes, til kullet den er født i. Brukes når gamle kull legges inn,
+    /// og en beholdt kattunge allerede ligger inne som voksen katt. Rollen og bildene beholdes, status blir Kept.
+    /// null hvis katten ikke finnes. ValidationException hvis den allerede hører til et kull.
+    /// </summary>
+    Task<CatDto?> AssignToLitterAsync(Guid catId, Guid litterId, DateOnly birthDate, CancellationToken cancellationToken);
+
+    /// <summary>Det motsatte, hvis feil katt ble koblet. ValidationException for en kattunge: den slettes i stedet.</summary>
+    Task<CatDto?> RemoveFromLitterAsync(Guid catId, CancellationToken cancellationToken);
 
     /// <summary>
     /// null hvis katten ikke finnes. ValidationException hvis den ikke er en kattunge.
