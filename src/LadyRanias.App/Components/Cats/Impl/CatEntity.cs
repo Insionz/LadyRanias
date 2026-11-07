@@ -18,6 +18,10 @@ internal sealed record CatEntity
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
     public bool Deceased { get; set; }
+    public Guid? MotherId { get; set; }
+    public string? MotherName { get; set; }
+    public Guid? FatherId { get; set; }
+    public string? FatherName { get; set; }
     public DateOnly? DeathDate { get; set; }
     public Guid? LitterId { get; set; }
     public KittenStatus? SaleStatus { get; set; }

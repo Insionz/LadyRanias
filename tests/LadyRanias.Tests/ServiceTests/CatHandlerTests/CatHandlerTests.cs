@@ -548,6 +548,46 @@ public sealed class CatHandlerTests
         Assert.IsTrue(neutered?.Neutered);
     }
 
+    // ---------- Mor og far for kjøpte katter ----------
+
+    [TestMethod]
+    public async Task Bought_cat_can_have_parents_in_the_system_or_as_names()
+    {
+        var stud = await _handler.CreateAsync(NewAdult() with { Name = "Lånt Balder", Sex = SexEnum.Male, Role = CatRole.External }, CancellationToken.None);
+
+        var cat = await _handler.CreateAsync(NewAdult() with
+        {
+            FatherId = stud.Id,
+            FatherName = "Ignoreres, for id-en vinner",
+            MotherName = "  IC NO*Skogheim's Frøya  ",
+        }, CancellationToken.None);
+
+        Assert.AreEqual(stud.Id, cat.FatherId);
+        Assert.IsNull(cat.FatherName);
+        Assert.IsNull(cat.MotherId);
+        Assert.AreEqual("IC NO*Skogheim's Frøya", cat.MotherName);
+    }
+
+    [TestMethod]
+    public async Task Parent_must_exist_and_have_the_right_sex()
+    {
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { MotherId = Guid.NewGuid() }, CancellationToken.None));
+
+        // Kiara er hunnkatt, og kan ikke være far.
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.CreateAsync(NewAdult() with { FatherId = _cats[0].Id }, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Cat_cannot_be_its_own_parent()
+    {
+        var cat = await _handler.CreateAsync(NewAdult(), CancellationToken.None);
+
+        await Assert.ThrowsExactlyAsync<ValidationException>(
+            () => _handler.UpdateAsync(cat.Id, UpdateFrom(cat, cat.Role) with { MotherId = cat.Id }, CancellationToken.None));
+    }
+
     [TestMethod]
     public async Task Death_before_birth_is_rejected()
     {

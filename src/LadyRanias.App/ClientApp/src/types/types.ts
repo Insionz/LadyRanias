@@ -24,6 +24,11 @@ export type Cat = {
   titles?: string | null
   deceased: boolean // død, med eller uten dato
   deathDate?: string | null // ofte ukjent for de gamle kattene
+  // Mor og far for en kjøpt katt: en katt i systemet, eller bare et navn. Født her: se kullet.
+  motherId?: string | null
+  motherName?: string | null
+  fatherId?: string | null
+  fatherName?: string | null
   litterId?: string | null // satt = født her, i dette kullet
   saleStatus?: KittenStatus | null // bare for kattunger
 }

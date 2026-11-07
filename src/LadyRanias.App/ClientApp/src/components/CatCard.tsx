@@ -2,13 +2,16 @@ import { Badge, Card, Group, Image, Text } from '@mantine/core'
 import { Link } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import type { Cat, CatImage } from '../types/types'
-import { ageLabel, breedLine, lifeYears, nameWithTitles, sexLabel } from '../utils/format'
+import { ageLabel, breedLine, lifeYears, sexLabel } from '../utils/format'
+import { highestTitle } from '../utils/titles'
+import { Rosette } from './TitleRosettes'
 
 export default function CatCard({ cat }: { cat: Cat }) {
   const { data: images } = useApi<CatImage[]>(`/api/public/cats/${cat.id}/images`)
 
   // Nyeste bilde først fra API-et. Har katten ingen bilder, viser vi plassholderen.
   const first = images?.[0]
+  const best = highestTitle(cat.titles)
   const src = first ? catImageUrl(cat.id, first.imageId, 'thumb') : undefined
 
   return (
@@ -27,9 +30,13 @@ export default function CatCard({ cat }: { cat: Cat }) {
       </Card.Section>
 
       <Group justify="space-between" mt="md" mb={4} wrap="nowrap">
-        <Text fw={600} size="lg" truncate>
-          {nameWithTitles(cat.name, cat.titles)}
-        </Text>
+        {/* Bare den høyeste tittelen på kortet. Alle titlene står på kattesiden. */}
+        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+          {best && <Rosette title={best} size={26} />}
+          <Text fw={600} size="lg" truncate>
+            {cat.name}
+          </Text>
+        </Group>
         <Group gap={4} wrap="nowrap">
           {cat.role === 'Retired' && !cat.deceased && (
             <Badge variant="outline" color="gray">

@@ -76,6 +76,10 @@ internal sealed class TableCatDatabase : ICatDatabase
             RegistrationNumber = entity.RegistrationNumber,
             Titles = entity.Titles,
             Deceased = entity.Deceased,
+            MotherId = entity.MotherId,
+            MotherName = entity.MotherName,
+            FatherId = entity.FatherId,
+            FatherName = entity.FatherName,
             DeathDate = entity.DeathDate?.ToDateTime(new TimeOnly(), DateTimeKind.Utc),
         };
     }
@@ -105,6 +109,10 @@ internal sealed class TableCatDatabase : ICatDatabase
             DeathDate = cat.DeathDate == null ? null : DateOnly.FromDateTime(cat.DeathDate.Value),
             // Før «død uten dato» fantes, betydde en dødsdato at katten var død.
             Deceased = cat.Deceased ?? cat.DeathDate != null,
+            MotherId = cat.MotherId,
+            MotherName = cat.MotherName,
+            FatherId = cat.FatherId,
+            FatherName = cat.FatherName,
         };
     }
 }

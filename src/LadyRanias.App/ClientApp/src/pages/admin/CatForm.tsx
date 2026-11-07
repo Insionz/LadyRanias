@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Alert, Button, Checkbox, Group, Select, SimpleGrid, Stack, TextInput, Textarea } from '@mantine/core'
-import { send } from '../../api/api'
+import { Alert, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core'
+import { send, useApi } from '../../api/api'
 import type { Breed, Cat, CatRole, Sex } from '../../types/types'
 import { breedLabel, emsBreedCode, roleLabel } from '../../utils/format'
 
@@ -38,6 +38,10 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [neutered, setNeutered] = useState(cat?.neutered ?? false)
   const [registrationNumber, setRegistrationNumber] = useState(cat?.registrationNumber ?? '')
   const [titles, setTitles] = useState(cat?.titles ?? '')
+  const [motherId, setMotherId] = useState<string | null>(cat?.motherId ?? null)
+  const [motherName, setMotherName] = useState(cat?.motherName ?? '')
+  const [fatherId, setFatherId] = useState<string | null>(cat?.fatherId ?? null)
+  const [fatherName, setFatherName] = useState(cat?.fatherName ?? '')
   const [deceased, setDeceased] = useState(cat?.deceased ?? false)
   const [deathDate, setDeathDate] = useState(cat?.deathDate ?? '')
   const [roleNotice, setRoleNotice] = useState<string | null>(null)
@@ -45,6 +49,15 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const roles = roleOptions(cat)
+  const bornHere = cat?.litterId != null
+
+  // Mulige foreldre: alle katter i admin-lista (også eksterne), med riktig kjønn, og ikke katten selv.
+  const allCats = useApi<Cat[]>(bornHere ? null : '/api/admin/cats')
+  const parentOptions = (parentSex: Sex) =>
+    (allCats.data ?? [])
+      .filter(c => c.sex === parentSex && c.id !== cat?.id)
+      .sort((a, b) => a.name.localeCompare(b.name, 'nb'))
+      .map(c => ({ value: c.id, label: c.role === 'External' ? `${c.name} (ekstern)` : c.name }))
   const isKitten = role === 'Kitten'
 
   // En kastrert katt kan ikke være i avl (samme regel som i backend, CatHandler.ValidateNeutered).
@@ -87,6 +100,11 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
       neutered,
       registrationNumber,
       titles,
+      // Født her: mor og far kommer fra kullet. Ellers en katt fra lista, eller bare et navn.
+      motherId: bornHere ? null : motherId,
+      motherName: bornHere || motherId ? null : motherName,
+      fatherId: bornHere ? null : fatherId,
+      fatherName: bornHere || fatherId ? null : fatherName,
       deceased,
       // Ikke død: ingen dato, selv om feltet hadde en fra før.
       deathDate: deceased && deathDate ? deathDate : null,
@@ -171,6 +189,56 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
           />
           <TextInput label="Titler" placeholder="For eksempel «IC»" value={titles} onChange={e => setTitles(e.currentTarget.value)} />
         </SimpleGrid>
+
+        {bornHere ? (
+          <Text size="sm" c="dimmed">
+            Mor og far kommer fra kullet katten er født i.
+          </Text>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            <Stack gap={4}>
+              <Select
+                label="Mor"
+                description="En katt vi har i systemet, også en ekstern"
+                placeholder="Velg katt"
+                searchable
+                clearable
+                value={motherId}
+                onChange={setMotherId}
+                data={parentOptions('Female')}
+              />
+              {!motherId && (
+                <TextInput
+                  aria-label="Mors navn"
+                  placeholder="… eller skriv navnet, med titler"
+                  value={motherName}
+                  onChange={e => setMotherName(e.currentTarget.value)}
+                />
+              )}
+            </Stack>
+            <Stack gap={4}>
+              <Select
+                label="Far"
+                description="En katt vi har i systemet, også en ekstern"
+                placeholder="Velg katt"
+                searchable
+                clearable
+                value={fatherId}
+                onChange={setFatherId}
+                data={parentOptions('Male')}
+              />
+              {!fatherId && (
+                <TextInput
+                  aria-label="Fars navn"
+                  placeholder="… eller skriv navnet, med titler"
+                  value={fatherName}
+                  onChange={e => setFatherName(e.currentTarget.value)}
+                />
+              )}
+            </Stack>
+          </SimpleGrid>
+        )}
+
         <Group align="flex-end">
           <Checkbox
             label="Kastrert"

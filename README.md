@@ -43,6 +43,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 15 | Minneside: døde katter får dødsdato og egen side, i stedet for å bli slettet | ✅ |
 | 16 | Bilder per uke: datoen bildet ble tatt (fra kameraet), «Uke 5» på kattungebilder, og bilder av hele kullet | ✅ |
 | 17 | Gamle kull: koble katter vi har til kullet de er født i, status ved innlegging, «Tidligere kull», «Under evaluering» | ✅ |
+| 18 | Mor og far for kjøpte katter, og titlene som rosetter på riktig side av navnet (FIFe) | ✅ |
 
 ## Utsatt til senere
 
@@ -1110,6 +1111,26 @@ eldste først, og koble de beholdte kattene til underveis. Da finnes mor og far 
       som er gjort om til avlskatt.
 - [x] **Tidligere kull** legges sammen nederst på kullsiden, eldste først. Et kull er aktuelt så lenge det er under et
       halvt år gammelt, eller har kattunger som ikke har fått et hjem. Innholdet hentes først når kullet åpnes.
+
+---
+
+## Steg 18: Mor og far for kjøpte katter, og tittelrosetter
+
+### Mor og far
+En katt født her har mor og far fra kullet. En kjøpt katt har også foreldre, men de finnes ikke som kull hos oss.
+- [x] `MotherId`/`FatherId` (en katt i systemet, også en ekstern) eller `MotherName`/`FatherName` (bare et navn, med titler).
+      Id vinner hvis begge er satt. Forelderen må finnes, ha riktig kjønn, og ikke være katten selv.
+- [x] Skjemaet: velg fra lista, eller skriv navnet. Er katten født her, står det at mor og far kommer fra kullet.
+- [x] Kattesiden viser «Mor: … · Far: …» likt for begge typer. Egne katter er lenker, eksterne og navn er tekst.
+
+### Titler
+Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2010) for de gamle titlene EC/EP.
+- [x] Stigen: KC → JC → CH/PR → IC/IP → GIC/GIP → SC/SP. EC/EP (det gamle navnet på toppnivået) regnes som SC/SP.
+- [x] Andre: JW, DSW, DSM, DVM, DM, og vinnertitlene NW, SW, NSW, MW, WW med år («WW'24», «WW 2024»).
+- [x] **Plassering etter FIFe:** vinnertitler med år først, så champion-titler, så navnet, så JW, DSW og merittene:
+      «WW'24 SC NO*LadyRania's Kiara JW DSM». Mamma skriver titlene i ett felt, i hvilken som helst rekkefølge (`titles.ts`).
+- [x] **Rosetter** vi har tegnet selv (SVG). Fargen stiger med nivået, og hel og kastrert katt på samme nivå har samme farge.
+      Fullt navn når musa holdes over. Kattekortet viser den høyeste, kattesiden alle. Ukjente titler står bare i navnet.
 
 ---
 
