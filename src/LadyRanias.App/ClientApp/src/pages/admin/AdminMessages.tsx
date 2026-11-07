@@ -10,7 +10,7 @@ const statuses: ContactStatus[] = ['New', 'Read', 'Answered']
 
 /** mailto-lenke som åpner e-postprogrammet med svar til den som skrev. */
 function replyLink(message: ContactMessage) {
-  const subject = `Sv: ${message.subject ?? 'Din henvendelse til LadyRanias'}`
+  const subject = `Sv: ${message.subject ?? 'Din henvendelse til Lady Rania’s'}`
   return `mailto:${message.email}?subject=${encodeURIComponent(subject)}`
 }
 

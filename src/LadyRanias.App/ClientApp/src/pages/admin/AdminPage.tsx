@@ -25,7 +25,7 @@ export default function AdminPage() {
 
   return (
     <>
-      <title>Admin – LadyRanias</title>
+      <title>Admin – Lady Rania’s</title>
 
       {auth.kind === 'loading' && <Loading />}
 

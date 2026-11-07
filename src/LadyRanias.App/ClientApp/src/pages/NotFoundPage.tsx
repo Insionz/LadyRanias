@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 export default function NotFoundPage() {
   return (
     <Container size="sm" ta="center" py="xl">
-      <title>Fant ikke siden – LadyRanias</title>
+      <title>Fant ikke siden – Lady Rania’s</title>
       <Title order={2} fz={56} mb="sm">
         Her var det tomt
       </Title>

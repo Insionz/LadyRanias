@@ -38,7 +38,7 @@ export default function HomePage() {
           Velkommen
         </Title>
         <Text size="lg">
-          LadyRanias er et lite oppdrett av Maine Coon og Hellig Birma. Kattene våre vokser opp hjemme, med mennesker
+          Lady Rania’s er et lite oppdrett av Maine Coon og Hellig Birma. Kattene våre vokser opp hjemme, med mennesker
           rundt seg hver dag.
         </Text>
       </Container>

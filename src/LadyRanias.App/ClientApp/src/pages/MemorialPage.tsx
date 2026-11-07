@@ -10,7 +10,7 @@ export default function MemorialPage() {
 
   return (
     <Stack gap="lg">
-      <title>Til minne – LadyRanias</title>
+      <title>Til minne – Lady Rania’s</title>
 
       <Stack gap={4}>
         <Title order={2} fz={52}>

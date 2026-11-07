@@ -35,7 +35,7 @@ export default function PostPage() {
 
   return (
     <Stack gap="md" maw={820}>
-      <title>{`${p.title} – LadyRanias`}</title>
+      <title>{`${p.title} – Lady Rania’s`}</title>
 
       <Anchor component={Link} to="/nyheter" size="sm">
         ← Alle nyheter

@@ -33,7 +33,7 @@ export default function ContactPage() {
 
   return (
     <Container size="sm" className="fade-up">
-      <title>Kontakt – LadyRanias</title>
+      <title>Kontakt – Lady Rania’s</title>
       <Title order={2} fz={52} mb="md">
         Kontakt
       </Title>
