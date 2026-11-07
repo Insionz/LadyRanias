@@ -5,6 +5,8 @@ using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
 using LadyRanias.App.Components.Litters.Api;
 using LadyRanias.App.Components.Litters.Impl;
+using LadyRanias.App.Components.Posts.Api;
+using LadyRanias.App.Components.Posts.Impl;
 using Microsoft.Extensions.Time.Testing;
 
 namespace LadyRanias.Tests.ServiceTests.CatImageHandlerTests;
@@ -26,6 +28,7 @@ public sealed class CatImageHandlerTests
     private readonly CatImageRemover _remover;
     private readonly CatHandler _catHandler;
     private readonly LitterHandler _litterHandler;
+    private readonly PostHandler _postHandler;
     private readonly CatImageHandler _handler;
     private CatDto _kiara = null!;
 
@@ -38,7 +41,8 @@ public sealed class CatImageHandlerTests
         _catHandler = new CatHandler(new InMemoryCatDatabase(), _clock, [new DeleteImagesWhenCatIsDeleted(_remover)]);
         // Ekte LitterHandler også, med lytteren som sletter bildene av kullet.
         _litterHandler = new LitterHandler(new InMemoryLitterDatabase(), _catHandler, _clock, [new DeleteImagesWhenLitterIsDeleted(_remover)]);
-        _handler = new CatImageHandler(_imageDatabase, _imageStore, _processor, _remover, _catHandler, _litterHandler, _clock);
+        _postHandler = new PostHandler(new InMemoryPostDatabase(), _catHandler, _clock, [new DeleteImagesWhenPostIsDeleted(_remover)]);
+        _handler = new CatImageHandler(_imageDatabase, _imageStore, _processor, _remover, _catHandler, _litterHandler, _postHandler, _clock);
     }
 
     [TestInitialize]
@@ -123,7 +127,7 @@ public sealed class CatImageHandlerTests
     {
         var store = new TrackingImageStore();
         var failingDatabase = new FailingCatImageDatabase();
-        var handler = new CatImageHandler(failingDatabase, store, _processor, new CatImageRemover(failingDatabase, store), _catHandler, _litterHandler, _clock);
+        var handler = new CatImageHandler(failingDatabase, store, _processor, new CatImageRemover(failingDatabase, store), _catHandler, _litterHandler, _postHandler, _clock);
         using var content = new MemoryStream(UploadBytes);
 
         await Assert.ThrowsExactlyAsync<InvalidOperationException>(
@@ -228,7 +232,7 @@ public sealed class CatImageHandlerTests
     public async Task Upload_uses_camera_date_when_the_image_has_one()
     {
         var cameraDate = new DateOnly(2026, 9, 15);
-        var handler = new CatImageHandler(_imageDatabase, _imageStore, new FakeImageProcessor(cameraDate), _remover, _catHandler, _litterHandler, _clock);
+        var handler = new CatImageHandler(_imageDatabase, _imageStore, new FakeImageProcessor(cameraDate), _remover, _catHandler, _litterHandler, _postHandler, _clock);
         using var content = new MemoryStream(UploadBytes);
 
         var uploaded = await handler.UploadAsync(_kiara.Id, content, "image/jpeg", UploadBytes.Length, CancellationToken.None);
@@ -307,6 +311,22 @@ public sealed class CatImageHandlerTests
 
         Assert.IsNull(await _handler.UploadForLitterAsync(Guid.NewGuid(), content, "image/png", UploadBytes.Length, CancellationToken.None));
         Assert.IsNull(await _handler.GetAllForLitterAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task Draft_post_can_have_images_and_they_are_deleted_with_it()
+    {
+        // Mamma laster opp bilder før hun publiserer.
+        var post = await _postHandler.CreateAsync(new SavePostDto { Title = "Utstilling i Hamar", Date = new DateOnly(2026, 10, 3) }, CancellationToken.None);
+        using var content = new MemoryStream(UploadBytes);
+
+        var uploaded = await _handler.UploadForPostAsync(post.Id, content, "image/png", UploadBytes.Length, CancellationToken.None);
+        Assert.IsNotNull(uploaded);
+        Assert.HasCount(1, (await _handler.GetAllForPostAsync(post.Id, CancellationToken.None))!);
+
+        await _postHandler.DeleteAsync(post.Id, CancellationToken.None);
+
+        Assert.HasCount(0, await _imageDatabase.GetAllForCatAsync(post.Id, CancellationToken.None));
     }
 
     [TestMethod]

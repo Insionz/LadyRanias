@@ -33,6 +33,20 @@ export type Cat = {
   saleStatus?: KittenStatus | null // bare for kattunger
 }
 
+/** Hva et innlegg i nyhetene handler om. */
+export type PostKind = 'Other' | 'Show' | 'NewCat' | 'Title' | 'Litter'
+
+export type Post = {
+  id: string
+  title: string
+  body: string // vanlig tekst, tom linje = nytt avsnitt
+  date: string // dagen det skjedde
+  kind: PostKind
+  catIds: string[]
+  published: boolean
+  createdAt: string
+}
+
 export type CatImage = {
   imageId: string
   createdAt: string

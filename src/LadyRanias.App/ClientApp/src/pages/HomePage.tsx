@@ -2,12 +2,14 @@ import { BackgroundImage, Box, Button, Container, Group, Stack, Text, Title } fr
 import { Link } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import CatGrid from '../components/CatGrid'
+import PostList from '../components/PostList'
 import { ErrorMessage, Loading } from '../components/Status'
-import type { Cat, CatImage } from '../types/types'
+import type { Cat, CatImage, Post } from '../types/types'
 import classes from './HomePage.module.css'
 
 export default function HomePage() {
   const cats = useApi<Cat[]>('/api/public/cats')
+  const posts = useApi<Post[]>('/api/public/posts')
 
   // Bakgrunnsbildet er det nyeste bildet av den nyeste katten. Ingen hardkodede id-er.
   const newestCat = cats.data?.[0]
@@ -56,6 +58,21 @@ export default function HomePage() {
         {cats.data && cats.data.length === 0 && <Text c="dimmed">Kattene kommer snart.</Text>}
         {cats.data && cats.data.length > 0 && <CatGrid cats={cats.data.slice(0, 3)} />}
       </Box>
+
+      {/* De tre siste nyhetene. Vises bare når det finnes noen. */}
+      {posts.data && posts.data.length > 0 && (
+        <Box>
+          <Group justify="space-between" align="baseline" mb="md">
+            <Title order={2} fz={44}>
+              Siste nytt
+            </Title>
+            <Button component={Link} to="/nyheter" variant="subtle">
+              Alle nyheter
+            </Button>
+          </Group>
+          <PostList posts={posts.data.slice(0, 3)} />
+        </Box>
+      )}
     </Stack>
   )
 }

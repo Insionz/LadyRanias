@@ -1,4 +1,4 @@
-import type { Breed, CatRole, ContactStatus, KittenStatus, Sex } from '../types/types'
+import type { Breed, Cat, CatRole, ContactStatus, KittenStatus, PostKind, Sex } from '../types/types'
 import { fullName } from './titles'
 
 export function sexLabel(sex: Sex) {
@@ -45,12 +45,21 @@ export function breedLine(breed: Breed, color?: string | null, emsCode?: string 
   return [breed === 'Unknown' ? null : breedLabel(breed), color, emsCode].filter(Boolean).join(' · ')
 }
 
+/**
+ * Merket for en katt som ikke er i avl. Kastrert sier det samme og mer (den kan aldri gå i avl igjen),
+ * så da står det «Kastrert». «Ute av avl» vises bare for en katt som ikke er kastrert. Ingenting for katter i avl.
+ */
+export function outOfBreedingLabel(cat: Pick<Cat, 'role' | 'neutered'>): string | null {
+  if (cat.role !== 'Retired') return null
+  return cat.neutered ? 'Kastrert' : 'Ute av avl'
+}
+
 export function roleLabel(role: CatRole) {
   switch (role) {
     case 'Breeding':
       return 'I avl'
     case 'Retired':
-      return 'Pensjonert'
+      return 'Ute av avl'
     case 'Kitten':
       return 'Kattunge'
     case 'External':
@@ -69,6 +78,23 @@ const dateFormat = new Intl.DateTimeFormat('nb-NO', { dateStyle: 'long' })
 /** «1. juni 2024» */
 export function formatDate(isoDate: string) {
   return dateFormat.format(parseDate(isoDate))
+}
+
+export const postKinds: PostKind[] = ['Show', 'NewCat', 'Title', 'Litter', 'Other']
+
+export function postKindLabel(kind: PostKind) {
+  switch (kind) {
+    case 'Show':
+      return 'Utstilling'
+    case 'NewCat':
+      return 'Ny katt'
+    case 'Title':
+      return 'Tittel'
+    case 'Litter':
+      return 'Kull'
+    default:
+      return 'Annet'
+  }
 }
 
 /** «2012–2026». Til minnesiden. Samme år to ganger blir bare ett. Uten dødsdato: «f. 2012». */

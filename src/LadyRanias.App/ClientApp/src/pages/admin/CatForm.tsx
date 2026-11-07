@@ -68,7 +68,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
     setNeutered(checked)
     if (checked && role === 'Breeding' && roles.includes('Retired')) {
       setRole('Retired')
-      setRoleNotice('Rollen er endret til «Pensjonert», for en kastrert katt kan ikke være i avl.')
+      setRoleNotice('Rollen er endret til «Ute av avl», for en kastrert katt kan ikke være i avl.')
     } else {
       setRoleNotice(null)
     }

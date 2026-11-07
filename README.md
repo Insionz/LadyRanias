@@ -43,6 +43,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 15 | Minneside: døde katter får dødsdato og egen side, i stedet for å bli slettet | ✅ |
 | 16 | Bilder per uke: datoen bildet ble tatt (fra kameraet), «Uke 5» på kattungebilder, og bilder av hele kullet | ✅ |
 | 17 | Gamle kull: koble katter vi har til kullet de er født i, status ved innlegging, «Tidligere kull», «Under evaluering» | ✅ |
+| 19 | Nyheter: innlegg mamma skriver selv, med bilder, type og katter | ✅ |
 | 18 | Mor og far for kjøpte katter, og titlene som rosetter på riktig side av navnet (FIFe) | ✅ |
 
 ## Utsatt til senere
@@ -1010,7 +1011,9 @@ Cats kjenner `LitterId` som en `Guid`, men vet ingenting om kull.
       (små bokstaver og ekstra mellomrom er greit, de ryddes bort). Tom tekst lagres som `null`.
 - [x] Roller: `Kitten` kan ikke velges for en ny katt. Bare en katt født i et kull kan være `Kitten`, og bare en
       **beholdt** kattunge kan bli `Breeding` eller `Retired`. Den beholder `LitterId` og vises fortsatt i kullet.
-- [x] En kastrert katt kan ikke være `Breeding`. Skjemaet bytter rollen til «Pensjonert» når «Kastrert» krysses av
+- [x] Rollen `Retired` heter «Ute av avl» på siden («Pensjonert» kunne misforstås). Merket viser «Kastrert» for en kastrert
+      katt som er ute av avl, og «Ute av avl» bare for en som ikke er kastrert. Katter i avl får ikke noe merke.
+- [x] En kastrert katt kan ikke være `Breeding`. Skjemaet bytter rollen til «Ute av avl» når «Kastrert» krysses av
       (og fjerner «Kastrert» hvis rollen settes til «I avl»), med en kort forklaring. Andre roller kan være kastrert.
 - [x] `GetAllAsync` (admin) viser alle unntatt kattunger, også eksterne. `GetOwnAsync` (offentlig) viser bare `Breeding` og `Retired`.
 - [x] En ny kattunge får `Role = Kitten` og rasen til moren. Mangler moren rase, avvises den med beskjed om å sette rasen først.
@@ -1131,6 +1134,30 @@ Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2
       «WW'24 SC NO*LadyRania's Kiara JW DSM». Mamma skriver titlene i ett felt, i hvilken som helst rekkefølge (`titles.ts`).
 - [x] **Rosetter** vi har tegnet selv (SVG). Fargen stiger med nivået, og hel og kastrert katt på samme nivå har samme farge.
       Fullt navn når musa holdes over. Kattekortet viser den høyeste, kattesiden alle. Ukjente titler står bare i navnet.
+
+---
+
+## Steg 19: Nyheter
+
+**Mål:** Mamma kan skrive om det som skjer: utstillinger, nye katter, titler og kull. Uten å spørre deg.
+
+### Backend: komponenten Posts
+- [x] `PostDto`: tittel, tekst, dato (dagen det skjedde), type (`Show`, `NewCat`, `Title`, `Litter`, `Other`),
+      katter, publisert eller utkast
+- [x] `api/public/posts` (bare publiserte, `?catId=` for innleggene om én katt) og `api/admin/posts` (alle, med utkast)
+- [x] Kattene må finnes. Slettes en katt, fjernes den fra innleggene (`ICatDeletedListener`), men innlegget blir stående.
+- [x] Kattene lagres som tekst med komma i Table Storage, som ikke har lister
+- [x] Bilder: et innlegg er en tredje eier av bilder i CatImages, ved siden av katter og kull. Et utkast kan ha bilder,
+      så mamma kan laste opp før hun publiserer. `IPostDeletedListener` sletter bildene når innlegget slettes.
+
+### Frontend
+- [x] Fanen «Nyheter»: nyeste først, filter på type, og en egen side per innlegg med bilder og kattene som lenker
+- [x] Forsiden viser de tre siste. Kattesiden viser «Nyheter om …».
+- [x] Teksten er vanlig tekst: tomme linjer gir avsnitt, og lenker blir klikkbare (`linkify.ts`). Ingen HTML fra teksten
+      kommer på siden, så ingen kan legge inn kode.
+- [x] Admin: fanen «Nyheter» med nytt innlegg, rediger, bilder og slett. Etter et nytt innlegg åpnes bildene med en gang.
+
+**Utsatt:** rik tekst (fet skrift, overskrifter), forslag til innlegg når en katt får en tittel.
 
 ---
 
