@@ -31,8 +31,13 @@ internal sealed class CatHandler(
             .ThenBy(cat => cat.BirthDate)];
     }
 
-    /// <summary>Våre egne voksne katter. Ikke kattunger (de står i kullet) og ikke eksterne.</summary>
-    private static bool IsOwn(CatEntity cat) => cat.Role is CatRole.Breeding or CatRole.Retired;
+    /// <summary>
+    /// Våre egne katter: i avl, pensjonerte, og kattunger vi har bestemt oss for å beholde.
+    /// Ikke eksterne, og ikke kattunger som er til salgs eller under evaluering (de står bare i kullet).
+    /// </summary>
+    private static bool IsOwn(CatEntity cat) =>
+        cat.Role is CatRole.Breeding or CatRole.Retired
+        || (cat.Role == CatRole.Kitten && cat.SaleStatus == KittenStatus.Kept);
 
     private async Task<IReadOnlyList<CatDto>> GetWhereAsync(Func<CatEntity, bool> filter, CancellationToken cancellationToken)
     {

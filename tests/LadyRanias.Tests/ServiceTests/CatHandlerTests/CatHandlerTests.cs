@@ -589,6 +589,21 @@ public sealed class CatHandlerTests
     }
 
     [TestMethod]
+    public async Task Kept_kitten_is_among_our_cats_before_its_role_is_changed()
+    {
+        var kitten = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Ask"), CancellationToken.None);
+        var underEvaluation = await _handler.CreateKittenAsync(Guid.NewGuid(), NewKitten("Embla"), CancellationToken.None, KittenStatus.UnderEvaluation);
+
+        Assert.IsFalse((await _handler.GetOwnAsync(CancellationToken.None)).Any(c => c.Id == kitten.Id));
+
+        await _handler.SetSaleStatusAsync(kitten.Id, KittenStatus.Kept, CancellationToken.None);
+
+        var own = await _handler.GetOwnAsync(CancellationToken.None);
+        Assert.IsTrue(own.Any(c => c.Id == kitten.Id));
+        Assert.IsFalse(own.Any(c => c.Id == underEvaluation.Id)); // ikke bestemt ennå
+    }
+
+    [TestMethod]
     public async Task Death_before_birth_is_rejected()
     {
         var cat = NewAdult();

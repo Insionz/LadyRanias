@@ -38,6 +38,12 @@ export default function CatCard({ cat }: { cat: Cat }) {
           </Text>
         </Group>
         <Group gap={4} wrap="nowrap">
+          {/* En kattunge vi beholder: står blant kattene våre før den går i avl. */}
+          {cat.role === 'Kitten' && (
+            <Badge variant="outline" color="grape">
+              Ung, født her
+            </Badge>
+          )}
           {cat.role === 'Retired' && !cat.deceased && (
             <Badge variant="outline" color="gray">
               Pensjonert
