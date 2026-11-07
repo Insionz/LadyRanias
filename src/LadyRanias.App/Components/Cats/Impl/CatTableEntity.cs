@@ -25,6 +25,10 @@ public record CatTableEntity : ITableEntity
     public string? RegistrationNumber { get; set; }
     public string? Titles { get; set; }
     public bool? Deceased { get; set; }
+    public Guid? MotherId { get; set; }
+    public string? MotherName { get; set; }
+    public Guid? FatherId { get; set; }
+    public string? FatherName { get; set; }
     public DateTime? DeathDate { get; set; }
     public ETag ETag { get; set; } = ETag.All;
 }

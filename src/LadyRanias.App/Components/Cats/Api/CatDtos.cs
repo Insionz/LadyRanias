@@ -28,6 +28,15 @@ public sealed record CatDto
     public bool Deceased { get; set; }
     public DateOnly? DeathDate { get; set; }
 
+    /// <summary>
+    /// Mor og far for en katt som ikke er født her (kjøpt fra et annet oppdrett).
+    /// Enten en katt i systemet (Id, også en ekstern), eller bare et navn. For katter født her kommer de fra kullet.
+    /// </summary>
+    public Guid? MotherId { get; set; }
+    public string? MotherName { get; set; }
+    public Guid? FatherId { get; set; }
+    public string? FatherName { get; set; }
+
     /// <summary>Satt hvis katten er født her. Da er den (eller har vært) en kattunge i dette kullet.</summary>
     public Guid? LitterId { get; set; }
 
@@ -59,6 +68,12 @@ public sealed record CreateCatDto
 
     /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
     public DateOnly? DeathDate { get; set; }
+
+    /// <summary>En katt i systemet, eller et navn hvis forelderen aldri har vært her. Id vinner hvis begge er satt.</summary>
+    public Guid? MotherId { get; set; }
+    [StringLength(120)] public string? MotherName { get; set; }
+    public Guid? FatherId { get; set; }
+    [StringLength(120)] public string? FatherName { get; set; }
 }
 
 /// <summary>Full oppdatering: alle feltene sendes, også de som ikke er endret.</summary>
@@ -86,6 +101,12 @@ public sealed record UpdateCatDto
 
     /// <summary>Valgfri. Ikke før fødselsdatoen, og ikke i framtiden.</summary>
     public DateOnly? DeathDate { get; set; }
+
+    /// <summary>En katt i systemet, eller et navn hvis forelderen aldri har vært her. Id vinner hvis begge er satt.</summary>
+    public Guid? MotherId { get; set; }
+    [StringLength(120)] public string? MotherName { get; set; }
+    public Guid? FatherId { get; set; }
+    [StringLength(120)] public string? FatherName { get; set; }
 }
 
 public enum SexEnum

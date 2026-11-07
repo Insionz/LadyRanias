@@ -74,6 +74,8 @@ public sealed class TableCatDatabaseTests
             Titles = "IC",
             Deceased = true,
             DeathDate = new DateOnly(2026, 2, 3),
+            MotherId = Guid.NewGuid(),
+            FatherName = "IC NO*Skogheim's Balder",
         };
 
         await _database.SaveAsync(cat, CancellationToken.None);

@@ -1,4 +1,5 @@
 import type { Breed, CatRole, ContactStatus, KittenStatus, Sex } from '../types/types'
+import { fullName } from './titles'
 
 export function sexLabel(sex: Sex) {
   switch (sex) {
@@ -34,9 +35,9 @@ export function emsBreedCode(breed: Breed) {
   }
 }
 
-/** «IC Kiara»: titlene står foran navnet, som på en stamtavle. */
+/** «WW'24 SC Kiara JW»: titlene på riktig side av navnet, slik FIFe skriver dem (se titles.ts). */
 export function nameWithTitles(name: string, titles?: string | null) {
-  return titles ? `${titles} ${name}` : name
+  return fullName(name, titles)
 }
 
 /** «Maine Coon · svart tabby · MCO n 22». Det som finnes, i den rekkefølgen. */

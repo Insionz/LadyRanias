@@ -60,6 +60,7 @@ internal sealed class CatHandler(
         ValidateDeathDate(newCat.BirthDate, newCat.DeathDate, timeNow);
 
         ValidateNeutered(newCat.Role, newCat.Neutered);
+        await ValidateParentsAsync(null, newCat.MotherId, newCat.FatherId, cancellationToken);
 
         if (newCat.Role == CatRole.Kitten)
         {
@@ -83,6 +84,10 @@ internal sealed class CatHandler(
             Titles = Clean(newCat.Titles),
             Deceased = IsDeceased(newCat.Deceased, newCat.DeathDate),
             DeathDate = DeathDateIf(newCat.Deceased, newCat.DeathDate),
+            MotherId = newCat.MotherId,
+            MotherName = newCat.MotherId == null ? Clean(newCat.MotherName) : null,
+            FatherId = newCat.FatherId,
+            FatherName = newCat.FatherId == null ? Clean(newCat.FatherName) : null,
         };
 
         await database.SaveAsync(cat, cancellationToken);
@@ -104,6 +109,7 @@ internal sealed class CatHandler(
         ValidateDeathDate(update.BirthDate, update.DeathDate, timeProvider.GetUtcNow());
         ValidateRoleChange(cat, update.Role);
         ValidateNeutered(update.Role, update.Neutered);
+        await ValidateParentsAsync(id, update.MotherId, update.FatherId, cancellationToken);
 
         // «with» lager en kopi med de nye verdiene. Id, CreatedAt, LitterId og SaleStatus følger med uendret.
         var updatedCat = cat with
@@ -121,6 +127,10 @@ internal sealed class CatHandler(
             Titles = Clean(update.Titles),
             Deceased = IsDeceased(update.Deceased, update.DeathDate),
             DeathDate = DeathDateIf(update.Deceased, update.DeathDate),
+            MotherId = update.MotherId,
+            MotherName = update.MotherId == null ? Clean(update.MotherName) : null,
+            FatherId = update.FatherId,
+            FatherName = update.FatherId == null ? Clean(update.FatherName) : null,
         };
 
         await database.SaveAsync(updatedCat, cancellationToken);
@@ -294,6 +304,34 @@ internal sealed class CatHandler(
         }
     }
 
+    /// <summary>Mor og far valgt fra lista må finnes, ha riktig kjønn, og ikke være katten selv.</summary>
+    private async Task ValidateParentsAsync(Guid? catId, Guid? motherId, Guid? fatherId, CancellationToken cancellationToken)
+    {
+        await ValidateParentAsync(catId, motherId, SexEnum.Female, "MotherId", cancellationToken);
+        await ValidateParentAsync(catId, fatherId, SexEnum.Male, "FatherId", cancellationToken);
+    }
+
+    private async Task ValidateParentAsync(Guid? catId, Guid? parentId, SexEnum expectedSex, string field, CancellationToken cancellationToken)
+    {
+        if (parentId == null)
+        {
+            return;
+        }
+
+        if (parentId == catId)
+        {
+            throw new ValidationException($"{field}: a cat cannot be its own parent");
+        }
+
+        var parent = await database.GetAsync(parentId.Value, cancellationToken)
+            ?? throw new ValidationException($"{field}: no cat with this id");
+
+        if (parent.Sex != expectedSex)
+        {
+            throw new ValidationException($"{field}: the cat must be {expectedSex.ToString().ToLowerInvariant()}");
+        }
+    }
+
     /// <summary>En kastrert katt kan ikke få kattunger, så den kan ikke være i avl. Pensjonert og kastrert er det vanlige.</summary>
     private static void ValidateNeutered(CatRole role, bool neutered)
     {
@@ -379,6 +417,10 @@ internal sealed class CatHandler(
             Titles = cat.Titles,
             Deceased = cat.Deceased,
             DeathDate = cat.DeathDate,
+            MotherId = cat.MotherId,
+            MotherName = cat.MotherName,
+            FatherId = cat.FatherId,
+            FatherName = cat.FatherName,
             LitterId = cat.LitterId,
             SaleStatus = cat.SaleStatus,
         };

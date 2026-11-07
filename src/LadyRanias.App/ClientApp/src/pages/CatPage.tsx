@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Anchor, Badge, Box, Group, Image, SimpleGrid, Stack, Table, Text, Title, UnstyledButton } from '@mantine/core'
 import { Link, useParams } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
-import Parents from '../components/Parents'
+import Parents, { ParentsLine } from '../components/Parents'
+import TitleRosettes from '../components/TitleRosettes'
 import { ErrorMessage, Loading } from '../components/Status'
 import type { Cat, CatImage, Litter } from '../types/types'
 import { contactLink } from '../utils/contactLink'
 import { groupByWeek } from '../utils/imageWeeks'
+import { parentFromCat, type ParentInfo } from '../utils/parents'
+import { parseTitles } from '../utils/titles'
 import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, nameWithTitles, sexLabel } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 
@@ -16,6 +19,9 @@ export default function CatPage() {
   const images = useApi<CatImage[]>(cat.data ? `/api/public/cats/${cat.data.id}/images` : null)
   // Født her? Da viser vi kullet: mor, far og en lenke dit.
   const litter = useApi<Litter>(cat.data?.litterId ? `/api/public/litters/${cat.data.litterId}` : null)
+  // Kjøpt katt: mor og far er valgt fra kattene i systemet (eller skrevet inn som navn).
+  const motherCat = useApi<Cat>(cat.data && !cat.data.litterId && cat.data.motherId ? `/api/public/cats/${cat.data.motherId}` : null)
+  const fatherCat = useApi<Cat>(cat.data && !cat.data.litterId && cat.data.fatherId ? `/api/public/cats/${cat.data.fatherId}` : null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   if (cat.notFound) return <NotFoundPage />
@@ -29,13 +35,19 @@ export default function CatPage() {
   const isKitten = c.role === 'Kitten'
   const deceased = c.deceased
   const sale = isKitten && c.saleStatus && !deceased ? kittenStatusBadge(c.saleStatus) : null
+  const titles = parseTitles(c.titles)
+
+  // For en kjøpt katt: en katt i systemet, ellers navnet som er skrevet inn.
+  const ownParent = (found: Cat | null, name?: string | null): ParentInfo | null =>
+    found ? parentFromCat(found) : name ? { name } : null
+  const mother = ownParent(motherCat.data, c.motherName)
+  const father = ownParent(fatherCat.data, c.fatherName)
 
   // Bare det som er fylt ut. En kattunge har ofte ikke farge eller EMS-kode ennå.
   const facts: [string, string][] = [
     ['Rase', c.breed === 'Unknown' ? '' : breedLabel(c.breed)],
     ['Farge', c.color ?? ''],
     ['EMS-kode', c.emsCode ?? ''],
-    ['Titler', c.titles ?? ''],
     ['Registreringsnummer', c.registrationNumber ?? ''],
     ['Kastrert', c.neutered ? 'Ja' : ''],
   ].filter((fact): fact is [string, string] => fact[1] !== '')
@@ -105,6 +117,7 @@ export default function CatPage() {
             <Title order={2} fz={64} lh={1.1}>
               {nameWithTitles(c.name, c.titles)}
             </Title>
+            <TitleRosettes titles={[...titles.before, ...titles.after]} size={44} />
             <Group gap="xs">
               {sale && <Badge color={sale.color}>{sale.label}</Badge>}
               <Badge variant="light">{sexLabel(c.sex)}</Badge>
@@ -137,6 +150,7 @@ export default function CatPage() {
                 </Text>
               </Stack>
             )}
+            {!c.litterId && (mother || father) && <ParentsLine mother={mother} father={father} />}
 
             {facts.length > 0 && (
               <Table withRowBorders={false} verticalSpacing={4} horizontalSpacing={0} w="auto">
