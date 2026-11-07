@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Alert, Button, Checkbox, Group, Select, SimpleGrid, Stack, Text, TextInput, Textarea } from '@mantine/core'
+import { Alert, Button, Checkbox, Group, Select, SimpleGrid, Stack, TagsInput, Text, TextInput, Textarea } from '@mantine/core'
 import { send, useApi } from '../../api/api'
 import type { Breed, Cat, CatRole, Sex } from '../../types/types'
 import { breedLabel, emsBreedCode, roleLabel } from '../../utils/format'
+import { knownTitleCodes, parseTitle } from '../../utils/titles'
 
 type Props = {
   cat?: Cat // mangler den, lager vi en ny katt
@@ -37,7 +38,8 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [color, setColor] = useState(cat?.color ?? '')
   const [neutered, setNeutered] = useState(cat?.neutered ?? false)
   const [registrationNumber, setRegistrationNumber] = useState(cat?.registrationNumber ?? '')
-  const [titles, setTitles] = useState(cat?.titles ?? '')
+  // Titlene som en liste, én per merkelapp. Lagres som tekst med mellomrom: «GIC JW WW'24».
+  const [titles, setTitles] = useState<string[]>((cat?.titles ?? '').split(/\s+/).filter(Boolean))
   const [motherId, setMotherId] = useState<string | null>(cat?.motherId ?? null)
   const [motherName, setMotherName] = useState(cat?.motherName ?? '')
   const [fatherId, setFatherId] = useState<string | null>(cat?.fatherId ?? null)
@@ -99,7 +101,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
       color,
       neutered,
       registrationNumber,
-      titles,
+      titles: titles.join(' '),
       // Født her: mor og far kommer fra kullet. Ellers en katt fra lista, eller bare et navn.
       motherId: bornHere ? null : motherId,
       motherName: bornHere || motherId ? null : motherName,
@@ -187,7 +189,18 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
             value={registrationNumber}
             onChange={e => setRegistrationNumber(e.currentTarget.value)}
           />
-          <TextInput label="Titler" placeholder="For eksempel «IC»" value={titles} onChange={e => setTitles(e.currentTarget.value)} />
+          <TagsInput
+            label="Titler"
+            description="Velg fra lista. Vinnertitler med år skrives inn, for eksempel WW'24."
+            placeholder={titles.length === 0 ? 'Velg eller skriv' : undefined}
+            data={knownTitleCodes}
+            value={titles}
+            // Store bokstaver, og «WW 24» blir «WW'24», så titlene gjenkjennes og får rosett.
+            onChange={values => setTitles(values.map(v => parseTitle(v.trim().replace(/\s+(?=['’]?\d{2,4}$)/, '')).text))}
+            renderOption={({ option }) => `${option.value} – ${parseTitle(option.value).name}`}
+            maxDropdownHeight={260}
+            clearable
+          />
         </SimpleGrid>
 
         {bornHere ? (
