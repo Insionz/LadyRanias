@@ -34,7 +34,8 @@ function PlannedLitter({ litter }: { litter: Litter }) {
 
 function BornLitter({ litter }: { litter: Litter }) {
   // Kattunger som ikke klarte seg, vises ikke her. Admin ser dem fortsatt.
-  const kittens = litter.kittens.filter(k => !k.deceased)
+  // Men en katt fra kullet som ble hos oss og døde senere (koblet voksen katt), er en del av historien og vises.
+  const kittens = litter.kittens.filter(k => !k.deceased || k.role !== 'Kitten')
   const available = kittens.filter(k => k.status === 'Available').length
 
   return (
