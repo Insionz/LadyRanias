@@ -4,6 +4,7 @@ import { ErrorMessage, Loading } from '../../components/Status'
 import AdminCats from './AdminCats'
 import AdminLitters from './AdminLitters'
 import AdminMessages from './AdminMessages'
+import AdminPosts from './AdminPosts'
 
 /**
  * Utlogging er et vanlig skjema som sender POST. Nettleseren følger da omdirigeringen til Entra og tilbake,
@@ -71,6 +72,7 @@ export default function AdminPage() {
             <Tabs.List>
               <Tabs.Tab value="cats">Katter</Tabs.Tab>
               <Tabs.Tab value="litters">Kull</Tabs.Tab>
+              <Tabs.Tab value="posts">Nyheter</Tabs.Tab>
               <Tabs.Tab value="messages">Meldinger</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="cats" pt="md">
@@ -78,6 +80,9 @@ export default function AdminPage() {
             </Tabs.Panel>
             <Tabs.Panel value="litters" pt="md">
               <AdminLitters />
+            </Tabs.Panel>
+            <Tabs.Panel value="posts" pt="md">
+              <AdminPosts />
             </Tabs.Panel>
             <Tabs.Panel value="messages" pt="md">
               <AdminMessages />

@@ -2,6 +2,7 @@ using LadyRanias.App.Components.CatImages.Api;
 using LadyRanias.App.Components.CatImages.Impl;
 using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Posts.Api;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LadyRanias.App.Components.CatImages;
@@ -22,6 +23,9 @@ public static class CatImagesComponent
 
         // Kull kan også ha bilder (hele kullet sammen). Litters sier fra når et kull slettes.
         builder.Services.AddSingleton<ILitterDeletedListener, DeleteImagesWhenLitterIsDeleted>();
+
+        // Og innlegg i nyhetene.
+        builder.Services.AddSingleton<IPostDeletedListener, DeleteImagesWhenPostIsDeleted>();
 
         return builder;
     }

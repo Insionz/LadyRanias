@@ -81,8 +81,8 @@ export async function uploadFile<T>(url: string, file: File): Promise<T> {
   return (await response.json()) as T
 }
 
-/** Hvem bildet tilhører: en katt (også kattunger) eller et helt kull. Adressene er ellers like. */
-export type ImageOwner = 'cats' | 'litters'
+/** Hvem bildet tilhører: en katt (også kattunger), et helt kull eller et innlegg. Adressene er ellers like. */
+export type ImageOwner = 'cats' | 'litters' | 'posts'
 
 export function imageUrl(owner: ImageOwner, ownerId: string, imageId: string, size: ImageSize) {
   return `/api/public/${owner}/${ownerId}/images/${imageId}?size=${size}`

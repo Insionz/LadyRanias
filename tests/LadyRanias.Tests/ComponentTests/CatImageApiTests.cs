@@ -3,6 +3,7 @@ using LadyRanias.App.Components.CatImages.Impl;
 using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Cats.Impl;
 using LadyRanias.App.Components.Litters.Impl;
+using LadyRanias.App.Components.Posts.Impl;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,7 @@ public sealed class CatImageApiTests
                 {
                     services.AddSingleton<ICatDatabase, InMemoryCatDatabase>();
                     services.AddSingleton<ILitterDatabase, InMemoryLitterDatabase>();
+                    services.AddSingleton<IPostDatabase, InMemoryPostDatabase>();
                     services.AddSingleton<ICatImageDatabase, InMemoryCatImageDatabase>();
                     services.AddSingleton<IImageStore, InMemoryImageStore>();
                     services.AddTestAuth();

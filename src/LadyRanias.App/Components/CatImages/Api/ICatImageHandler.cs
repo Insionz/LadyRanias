@@ -12,13 +12,19 @@ public interface ICatImageHandler
     /// <returns><c>null</c> hvis kullet ikke finnes.</returns>
     Task<CatImageDto?> UploadForLitterAsync(Guid litterId, Stream content, string contentType, long length, CancellationToken cancellationToken);
 
+    /// <returns><c>null</c> hvis innlegget ikke finnes (også et utkast regnes som funnet).</returns>
+    Task<CatImageDto?> UploadForPostAsync(Guid postId, Stream content, string contentType, long length, CancellationToken cancellationToken);
+
     /// <returns>Bildene, sist tatt først, eller <c>null</c> hvis katten ikke finnes.</returns>
     Task<IReadOnlyList<CatImageDto>?> GetAllAsync(Guid catId, CancellationToken cancellationToken);
 
     /// <returns>Bildene, sist tatt først, eller <c>null</c> hvis kullet ikke finnes.</returns>
     Task<IReadOnlyList<CatImageDto>?> GetAllForLitterAsync(Guid litterId, CancellationToken cancellationToken);
 
-    /// <param name="ownerId">Katten eller kullet.</param>
+    /// <returns>Bildene til et innlegg, eller <c>null</c> hvis innlegget ikke finnes.</returns>
+    Task<IReadOnlyList<CatImageDto>?> GetAllForPostAsync(Guid postId, CancellationToken cancellationToken);
+
+    /// <param name="ownerId">Katten, kullet eller innlegget.</param>
     /// <returns><c>null</c> hvis bildet ikke finnes.</returns>
     Task<CatImageFile?> OpenAsync(Guid ownerId, Guid imageId, CatImageSize size, CancellationToken cancellationToken);
 

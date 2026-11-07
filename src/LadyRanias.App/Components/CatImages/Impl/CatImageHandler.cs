@@ -1,6 +1,7 @@
 using LadyRanias.App.Components.CatImages.Api;
 using LadyRanias.App.Components.Cats.Api;
 using LadyRanias.App.Components.Litters.Api;
+using LadyRanias.App.Components.Posts.Api;
 using System.ComponentModel.DataAnnotations;
 
 namespace LadyRanias.App.Components.CatImages.Impl;
@@ -15,6 +16,7 @@ internal sealed class CatImageHandler(
     CatImageRemover remover,
     ICatHandler catHandler,
     ILitterHandler litterHandler,
+    IPostHandler postHandler,
     TimeProvider timeProvider) : ICatImageHandler
 {
     internal const string ThumbnailSuffix = "thumb";
@@ -28,6 +30,16 @@ internal sealed class CatImageHandler(
 
     public Task<CatImageDto?> UploadForLitterAsync(Guid litterId, Stream content, string contentType, long length, CancellationToken cancellationToken) =>
         UploadForOwnerAsync(litterId, ct => LitterExistsAsync(litterId, ct), content, contentType, length, cancellationToken);
+
+    public Task<CatImageDto?> UploadForPostAsync(Guid postId, Stream content, string contentType, long length, CancellationToken cancellationToken) =>
+        UploadForOwnerAsync(postId, ct => PostExistsAsync(postId, ct), content, contentType, length, cancellationToken);
+
+    public Task<IReadOnlyList<CatImageDto>?> GetAllForPostAsync(Guid postId, CancellationToken cancellationToken) =>
+        GetAllForOwnerAsync(postId, ct => PostExistsAsync(postId, ct), cancellationToken);
+
+    // Et utkast regnes som funnet: mamma laster opp bilder før hun publiserer, og adminsiden henter dem herfra.
+    private async Task<bool> PostExistsAsync(Guid postId, CancellationToken cancellationToken) =>
+        await postHandler.GetAsync(postId, includeDrafts: true, cancellationToken) != null;
 
     public Task<IReadOnlyList<CatImageDto>?> GetAllAsync(Guid catId, CancellationToken cancellationToken) =>
         GetAllForOwnerAsync(catId, ct => CatExistsAsync(catId, ct), cancellationToken);

@@ -7,6 +7,8 @@ import HomePage from './pages/HomePage'
 import CatsPage from './pages/CatsPage'
 import CatPage from './pages/CatPage'
 import MemorialPage from './pages/MemorialPage'
+import NewsPage from './pages/NewsPage'
+import PostPage from './pages/PostPage'
 import LittersPage from './pages/LittersPage'
 import ContactPage from './pages/ContactPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -16,6 +18,7 @@ const links = [
   { to: '/', label: 'Hjem' },
   { to: '/katter', label: 'Katter' },
   { to: '/kull', label: 'Kull' },
+  { to: '/nyheter', label: 'Nyheter' },
   { to: '/minne', label: 'Til minne' },
   { to: '/kontakt', label: 'Kontakt' },
 ]
@@ -79,6 +82,8 @@ export default function App() {
           <Route path="/katter" element={<CatsPage />} />
           <Route path="/katter/:id" element={<CatPage />} />
           <Route path="/minne" element={<MemorialPage />} />
+          <Route path="/nyheter" element={<NewsPage />} />
+          <Route path="/nyheter/:id" element={<PostPage />} />
           <Route path="/kull" element={<LittersPage />} />
           <Route path="/kontakt" element={<ContactPage />} />
           {/* Står ikke i menyen. Tilgangen styres av API-et, ikke av om lenken vises. */}

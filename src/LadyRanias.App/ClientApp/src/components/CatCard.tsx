@@ -2,7 +2,7 @@ import { Badge, Card, Group, Image, Text } from '@mantine/core'
 import { Link } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import type { Cat, CatImage } from '../types/types'
-import { ageLabel, breedLine, lifeYears, sexLabel } from '../utils/format'
+import { ageLabel, breedLine, lifeYears, outOfBreedingLabel, sexLabel } from '../utils/format'
 import { highestTitle } from '../utils/titles'
 import { Rosette } from './TitleRosettes'
 
@@ -12,6 +12,7 @@ export default function CatCard({ cat }: { cat: Cat }) {
   // Nyeste bilde først fra API-et. Har katten ingen bilder, viser vi plassholderen.
   const first = images?.[0]
   const best = highestTitle(cat.titles)
+  const outOfBreeding = outOfBreedingLabel(cat)
   const src = first ? catImageUrl(cat.id, first.imageId, 'thumb') : undefined
 
   return (
@@ -44,9 +45,9 @@ export default function CatCard({ cat }: { cat: Cat }) {
               Ung, født her
             </Badge>
           )}
-          {cat.role === 'Retired' && !cat.deceased && (
+          {outOfBreeding && !cat.deceased && (
             <Badge variant="outline" color="gray">
-              Pensjonert
+              {outOfBreeding}
             </Badge>
           )}
           <Badge variant="light">{sexLabel(cat.sex)}</Badge>

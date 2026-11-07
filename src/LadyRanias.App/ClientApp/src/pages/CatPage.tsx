@@ -4,13 +4,14 @@ import { Link, useParams } from 'react-router'
 import { catImageUrl, useApi } from '../api/api'
 import Parents, { ParentsLine } from '../components/Parents'
 import TitleRosettes from '../components/TitleRosettes'
+import PostList from '../components/PostList'
 import { ErrorMessage, Loading } from '../components/Status'
-import type { Cat, CatImage, Litter } from '../types/types'
+import type { Cat, CatImage, Litter, Post } from '../types/types'
 import { contactLink } from '../utils/contactLink'
 import { groupByWeek } from '../utils/imageWeeks'
 import { parentFromCat, type ParentInfo } from '../utils/parents'
 import { parseTitles } from '../utils/titles'
-import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, sexLabel } from '../utils/format'
+import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, outOfBreedingLabel, sexLabel } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 
 /** Titlene i navnet: vanlig skrift, mindre og litt sperret, så hver bokstav kan leses. */
@@ -30,6 +31,7 @@ export default function CatPage() {
   // Født her? Da viser vi kullet: mor, far og en lenke dit.
   const litter = useApi<Litter>(cat.data?.litterId ? `/api/public/litters/${cat.data.litterId}` : null)
   // Kjøpt katt: mor og far er valgt fra kattene i systemet (eller skrevet inn som navn).
+  const posts = useApi<Post[]>(cat.data ? `/api/public/posts?catId=${cat.data.id}` : null)
   const motherCat = useApi<Cat>(cat.data && !cat.data.litterId && cat.data.motherId ? `/api/public/cats/${cat.data.motherId}` : null)
   const fatherCat = useApi<Cat>(cat.data && !cat.data.litterId && cat.data.fatherId ? `/api/public/cats/${cat.data.fatherId}` : null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -59,7 +61,8 @@ export default function CatPage() {
     ['Farge', c.color ?? ''],
     ['EMS-kode', c.emsCode ?? ''],
     ['Registreringsnummer', c.registrationNumber ?? ''],
-    ['Kastrert', c.neutered ? 'Ja' : ''],
+    // Står det allerede «Kastrert» på merket, trengs det ikke i tabellen også.
+    ['Kastrert', c.neutered && (c.role !== 'Retired' || deceased) ? 'Ja' : ''],
   ].filter((fact): fact is [string, string] => fact[1] !== '')
 
   return (
@@ -144,9 +147,9 @@ export default function CatPage() {
               ) : (
                 <Badge variant="outline">{ageLabel(c.birthDate)}</Badge>
               )}
-              {c.role === 'Retired' && !deceased && (
+              {outOfBreedingLabel(c) && !deceased && (
                 <Badge variant="outline" color="gray">
-                  Pensjonert
+                  {outOfBreedingLabel(c)}
                 </Badge>
               )}
             </Group>
@@ -193,6 +196,16 @@ export default function CatPage() {
           </Stack>
         </Box>
       </SimpleGrid>
+
+      {/* Innleggene mamma har skrevet om katten: utstillinger, titler, da den kom hit. */}
+      {posts.data && posts.data.length > 0 && (
+        <Stack gap="md" mt={48}>
+          <Title order={3} fz={40}>
+            Nyheter om {c.name}
+          </Title>
+          <PostList posts={posts.data} />
+        </Stack>
+      )}
     </>
   )
 }
