@@ -67,7 +67,7 @@ export default function CatPage() {
 
   return (
     <>
-      <title>{`${c.name} – LadyRanias`}</title>
+      <title>{`${c.name} – Lady Rania’s`}</title>
 
       {deceased && !isKitten ? (
         <Anchor component={Link} to="/minne" size="sm">

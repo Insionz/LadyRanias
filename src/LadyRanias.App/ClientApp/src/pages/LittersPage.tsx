@@ -112,7 +112,7 @@ export default function LittersPage() {
 
   return (
     <Stack gap={40}>
-      <title>Kull – LadyRanias</title>
+      <title>Kull – Lady Rania’s</title>
 
       <Title order={2} fz={52}>
         Kull og kattunger

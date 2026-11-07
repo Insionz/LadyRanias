@@ -14,7 +14,7 @@ export default function NewsPage() {
 
   return (
     <Stack gap="lg">
-      <title>Nyheter – LadyRanias</title>
+      <title>Nyheter – Lady Rania’s</title>
 
       <Group justify="space-between" align="center">
         <Title order={2} fz={52}>

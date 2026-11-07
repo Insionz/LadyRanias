@@ -30,7 +30,7 @@ export default function CatsPage() {
 
   return (
     <>
-      <title>Katter – LadyRanias</title>
+      <title>Katter – Lady Rania’s</title>
 
       <Group justify="space-between" align="center" mb="lg">
         <Title order={2} fz={52}>
