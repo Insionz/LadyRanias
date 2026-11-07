@@ -56,6 +56,9 @@ const known: Record<string, Known> = {
   DM: { kind: 'offspring', name: 'Distinguished Merit (for avkommet sitt)', after: true },
 }
 
+/** Alle kjente titler, i stigen først og så de andre. Til nedtrekkslista i admin. */
+export const knownTitleCodes = Object.keys(known)
+
 /** Rekkefølgen etter navnet: JW og DSW først, så meritter. */
 const afterOrder = ['JW', 'DSW', 'DSM', 'DVM', 'DM']
 
