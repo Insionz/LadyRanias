@@ -96,10 +96,18 @@ internal sealed class LitterHandler(
 
         // Samme rekkefølge som når en katt slettes: hovedraden først, så oppryddingen.
         // Kattungene slettes gjennom Cats, så bildene deres også ryddes bort (ICatDeletedListener).
+        // En voksen katt som er født i kullet (beholdt), slettes IKKE. Den mister bare koblingen til kullet.
         // CancellationToken.None: oppryddingen skal fullføres selv om forespørselen avbrytes.
         foreach (var kitten in kittensInLitter)
         {
-            await cats.DeleteAsync(kitten.Id, CancellationToken.None);
+            if (kitten.Role == CatRole.Kitten)
+            {
+                await cats.DeleteAsync(kitten.Id, CancellationToken.None);
+            }
+            else
+            {
+                await cats.RemoveFromLitterAsync(kitten.Id, CancellationToken.None);
+            }
         }
 
         // Bildene av hele kullet (CatImages).
@@ -136,7 +144,7 @@ internal sealed class LitterHandler(
             BirthDate = litter.BirthDate.Value,
             Description = newKitten.Description,
             Breed = mother.Breed,
-        }, cancellationToken);
+        }, cancellationToken, newKitten.Status);
 
         return ToKittenDto(kitten, litterId);
     }
@@ -162,7 +170,56 @@ internal sealed class LitterHandler(
         var kitten = await FindKittenAsync(litterId, kittenId, cancellationToken);
         if (kitten == null) return false;
 
+        // En beholdt kattunge som er blitt voksen katt, er en av mammas katter. Den skal ikke slettes fra kullet.
+        if (kitten.Role != CatRole.Kitten)
+        {
+            throw new InvalidStateException("This cat is one of our adult cats. Remove it from the litter instead of deleting it.");
+        }
+
         return await cats.DeleteAsync(kittenId, cancellationToken);
+    }
+
+    public async Task<KittenDto?> LinkExistingCatAsync(Guid litterId, LinkCatDto link, CancellationToken cancellationToken)
+    {
+        var litter = await litters.GetAsync(litterId, cancellationToken);
+        if (litter == null) return null;
+
+        if (litter.Status != LitterStatus.Born || litter.BirthDate == null)
+        {
+            throw new InvalidStateException("Cats can only be linked to a litter that is born");
+        }
+
+        if (link.CatId == litter.MotherId || link.CatId == litter.FatherId)
+        {
+            throw new ValidationException("CatId: a parent cannot be a kitten in its own litter");
+        }
+
+        var cat = await cats.GetAsync(link.CatId, cancellationToken)
+            ?? throw new ValidationException("CatId: no cat with this id");
+
+        // Er fødselsdatoen en annen, vil vi at mamma skal se det og velge, ikke at vi endrer den i stillhet.
+        if (cat.BirthDate != litter.BirthDate.Value && !link.UseLitterBirthDate)
+        {
+            throw new ValidationException(
+                $"BirthDate: the cat is registered as born {cat.BirthDate:yyyy-MM-dd}, the litter {litter.BirthDate.Value:yyyy-MM-dd}");
+        }
+
+        var linked = await cats.AssignToLitterAsync(cat.Id, litterId, litter.BirthDate.Value, cancellationToken);
+
+        return linked == null ? null : ToKittenDto(linked, litterId);
+    }
+
+    public async Task<bool> UnlinkCatAsync(Guid litterId, Guid catId, CancellationToken cancellationToken)
+    {
+        var cat = await FindKittenAsync(litterId, catId, cancellationToken);
+        if (cat == null) return false;
+
+        if (cat.Role == CatRole.Kitten)
+        {
+            throw new InvalidStateException("A kitten cannot be removed from its litter. Delete it instead.");
+        }
+
+        return await cats.RemoveFromLitterAsync(catId, cancellationToken) != null;
     }
 
     /// <summary>
@@ -255,6 +312,7 @@ internal sealed class LitterHandler(
             Breed = kitten.Breed,
             EmsCode = kitten.EmsCode,
             Color = kitten.Color,
+            Role = kitten.Role,
             Deceased = kitten.Deceased,
             DeathDate = kitten.DeathDate,
         };

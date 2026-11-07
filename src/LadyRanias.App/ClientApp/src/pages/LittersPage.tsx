@@ -1,4 +1,5 @@
-import { Anchor, Card, Divider, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { useState } from 'react'
+import { Accordion, Anchor, Card, Divider, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { Link } from 'react-router'
 import { useApi } from '../api/api'
 import KittenCard from '../components/KittenCard'
@@ -71,7 +72,29 @@ function BornLitter({ litter }: { litter: Litter }) {
   )
 }
 
+const halfYearMs = 182 * 24 * 60 * 60 * 1000
+
+/**
+ * Et kull er «aktuelt» så lenge det er under et halvt år gammelt, eller har kattunger som ikke har fått et hjem ennå.
+ * Resten er tidligere kull: historien, som legges sammen nederst så de nye kullene ikke drukner.
+ */
+function isCurrent(litter: Litter, now = Date.now()) {
+  if (litter.status === 'Planned') return true
+  const young = litter.birthDate != null && now - Date.parse(litter.birthDate) < halfYearMs
+  const open = litter.kittens.some(k => !k.deceased && (k.status === 'Available' || k.status === 'Reserved' || k.status === 'UnderEvaluation'))
+  return young || open
+}
+
+/** «A-kullet · 2018 · Kiara × Børre» */
+function previousTitle(litter: Litter) {
+  return [litter.name, litter.birthDate?.slice(0, 4), litter.mother && litter.father ? `${litter.mother.name} × ${litter.father.name}` : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 export default function LittersPage() {
+  // Bare ett tidligere kull er åpent om gangen. Innholdet (bildene) hentes først når det åpnes.
+  const [openPrevious, setOpenPrevious] = useState<string | null>(null)
   // Mor og far følger med i kullet, også en ekstern far som ikke står blant kattene våre.
   const litters = useApi<Litter[]>('/api/public/litters')
 
@@ -80,7 +103,11 @@ export default function LittersPage() {
 
   const all = litters.data ?? []
   const planned = all.filter(l => l.status === 'Planned')
-  const born = all.filter(l => l.status === 'Born')
+  const born = all.filter(l => l.status === 'Born' && isCurrent(l))
+  // Eldste først, så historien leses fra begynnelsen.
+  const previous = all
+    .filter(l => l.status === 'Born' && !isCurrent(l))
+    .sort((a, b) => (a.birthDate ?? '').localeCompare(b.birthDate ?? ''))
 
   return (
     <Stack gap={40}>
@@ -111,6 +138,23 @@ export default function LittersPage() {
           <BornLitter litter={litter} />
         </Stack>
       ))}
+
+      {previous.length > 0 && (
+        <Stack gap="md">
+          {(born.length > 0 || planned.length > 0) && <Divider />}
+          <Title order={2} fz={40}>
+            Tidligere kull
+          </Title>
+          <Accordion variant="separated" value={openPrevious} onChange={setOpenPrevious}>
+            {previous.map(litter => (
+              <Accordion.Item key={litter.id} value={litter.id}>
+                <Accordion.Control>{previousTitle(litter)}</Accordion.Control>
+                <Accordion.Panel>{openPrevious === litter.id && <BornLitter litter={litter} />}</Accordion.Panel>
+              </Accordion.Item>
+            ))}
+          </Accordion>
+        </Stack>
+      )}
     </Stack>
   )
 }
