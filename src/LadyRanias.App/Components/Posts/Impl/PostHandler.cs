@@ -98,7 +98,7 @@ internal sealed class PostHandler(
             throw new ValidationException("Kind is not valid");
         }
 
-        var catIds = (post.CatIds ?? []).Distinct().ToList();
+        var catIds = (post.CatIds ?? Array.Empty<Guid>()).Distinct().ToList();
         foreach (var catId in catIds)
         {
             if (await cats.GetAsync(catId, cancellationToken) == null)

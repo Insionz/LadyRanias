@@ -1,46 +1,47 @@
-import { BackgroundImage, Box, Button, Container, Group, Stack, Text, Title } from '@mantine/core'
+import { Box, Button, Container, Group, Stack, Text, Title } from '@mantine/core'
 import { Link } from 'react-router'
-import { catImageUrl, useApi } from '../api/api'
+import { useApi } from '../api/api'
 import CatGrid from '../components/CatGrid'
+import Hero from '../components/Hero'
 import PostList from '../components/PostList'
+import PostText from '../components/PostText'
 import { ErrorMessage, Loading } from '../components/Status'
-import type { Cat, CatImage, Post } from '../types/types'
+import type { Cat, Post, SiteSettings } from '../types/types'
 import classes from './HomePage.module.css'
 
 export default function HomePage() {
   const cats = useApi<Cat[]>('/api/public/cats')
   const posts = useApi<Post[]>('/api/public/posts')
-
-  // Bakgrunnsbildet er det nyeste bildet av den nyeste katten. Ingen hardkodede id-er.
-  const newestCat = cats.data?.[0]
-  const images = useApi<CatImage[]>(newestCat ? `/api/public/cats/${newestCat.id}/images` : null)
-  const heroImage = newestCat && images.data?.[0]
-  const heroSrc = heroImage ? catImageUrl(newestCat.id, heroImage.imageId, 'large') : ''
+  // Velkomstteksten og forsidebildet styrer mamma selv i admin («Forside»).
+  const site = useApi<SiteSettings>('/api/public/site')
 
   return (
     <Stack gap={48}>
-      <BackgroundImage src={heroSrc} radius="md" className={`${classes.hero} fade-up`}>
-        <div className={classes.shade} />
-        <div className={classes.content}>
-          <Group justify="space-between" align="flex-end" gap="md">
-            <Title order={2} className={classes.breed}>
-              Maine Coon
-            </Title>
-            <Title order={2} className={classes.breed}>
-              Hellig Birma
-            </Title>
-          </Group>
-        </div>
-      </BackgroundImage>
+      <Hero settings={site.data}>
+        <Group justify="space-between" align="flex-end" gap="md">
+          <Title order={2} className={classes.breed}>
+            Maine Coon
+          </Title>
+          <Title order={2} className={classes.breed}>
+            Hellig Birma
+          </Title>
+        </Group>
+      </Hero>
 
       <Container size="sm" ta="center">
         <Title order={2} fz={48} mb="sm">
           Velkommen
         </Title>
-        <Text size="lg">
-          Lady Rania’s er et lite oppdrett av Maine Coon og Hellig Birma. Kattene våre vokser opp hjemme, med mennesker
-          rundt seg hver dag.
-        </Text>
+        {site.data?.welcomeText && (
+          <Box fz="lg">
+            <PostText body={site.data.welcomeText} />
+          </Box>
+        )}
+        {site.data?.aboutText && (
+          <Button component={Link} to="/om-oss" variant="subtle" mt="sm">
+            Les mer om oss
+          </Button>
+        )}
       </Container>
 
       <Box>

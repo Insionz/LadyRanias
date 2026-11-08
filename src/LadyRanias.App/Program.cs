@@ -5,6 +5,7 @@ using LadyRanias.App.Components.Contact;
 using LadyRanias.App.Components.Health;
 using LadyRanias.App.Components.Litters;
 using LadyRanias.App.Components.Posts;
+using LadyRanias.App.Components.Site;
 using LadyRanias.App.Components.Storage;
 using LadyRanias.App.Components.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -46,6 +47,7 @@ builder.UseCatsComponent();
 builder.UseCatImagesComponent();
 builder.UseLittersComponent();
 builder.UsePostsComponent();
+builder.UseSiteComponent();
 builder.UseContactComponent();
 
 var app = builder.Build();

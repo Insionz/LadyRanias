@@ -15,10 +15,12 @@ type Props = {
   ownerId: string
   /** Fødselsdatoen til kattungen eller kullet. Da velges uke i stedet for dato. */
   birthDate?: string | null
+  /** Kalles når bildene er endret (lastet opp, slettet, ny dato), for den som viser dem et annet sted også. */
+  onChanged?: () => void
 }
 
 /** Bildene til en katt, en kattunge eller et kull. Kattunger er katter med samme id, så de bruker «cats». */
-export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate }: Props) {
+export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate, onChanged }: Props) {
   const images = useApi<CatImage[]>(`/api/public/${owner}/${ownerId}/images`)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +45,7 @@ export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate }: 
     } finally {
       setUploading(false)
       images.reload()
+      onChanged?.()
     }
   }
 
@@ -51,6 +54,7 @@ export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate }: 
     try {
       await send('DELETE', `${adminUrl}/${imageId}`)
       images.reload()
+      onChanged?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kunne ikke slette')
     }
@@ -61,6 +65,7 @@ export default function CatImagesEditor({ owner = 'cats', ownerId, birthDate }: 
     try {
       await send('PUT', `${adminUrl}/${imageId}`, { takenAt })
       images.reload()
+      onChanged?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kunne ikke lagre datoen')
     }

@@ -82,7 +82,10 @@ export async function uploadFile<T>(url: string, file: File): Promise<T> {
 }
 
 /** Hvem bildet tilhører: en katt (også kattunger), et helt kull eller et innlegg. Adressene er ellers like. */
-export type ImageOwner = 'cats' | 'litters' | 'posts'
+export type ImageOwner = 'cats' | 'litters' | 'posts' | 'site'
+
+/** Forsidebildene hører ikke til en katt eller et kull, men ligger under en fast id. Samme som FrontPageImages.OwnerId i backend. */
+export const SITE_IMAGES_ID = '00000000-0000-0000-0000-000000000001'
 
 export function imageUrl(owner: ImageOwner, ownerId: string, imageId: string, size: ImageSize) {
   return `/api/public/${owner}/${ownerId}/images/${imageId}?size=${size}`

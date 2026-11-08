@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage'
 import CatsPage from './pages/CatsPage'
 import CatPage from './pages/CatPage'
 import MemorialPage from './pages/MemorialPage'
+import AboutPage from './pages/AboutPage'
 import NewsPage from './pages/NewsPage'
 import PostPage from './pages/PostPage'
 import LittersPage from './pages/LittersPage'
@@ -20,6 +21,7 @@ const links = [
   { to: '/kull', label: 'Kull' },
   { to: '/nyheter', label: 'Nyheter' },
   { to: '/minne', label: 'Til minne' },
+  { to: '/om-oss', label: 'Om oss' },
   { to: '/kontakt', label: 'Kontakt' },
 ]
 
@@ -82,6 +84,7 @@ export default function App() {
           <Route path="/katter" element={<CatsPage />} />
           <Route path="/katter/:id" element={<CatPage />} />
           <Route path="/minne" element={<MemorialPage />} />
+          <Route path="/om-oss" element={<AboutPage />} />
           <Route path="/nyheter" element={<NewsPage />} />
           <Route path="/nyheter/:id" element={<PostPage />} />
           <Route path="/kull" element={<LittersPage />} />

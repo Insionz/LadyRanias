@@ -37,6 +37,12 @@ internal sealed class CatImageHandler(
     public Task<IReadOnlyList<CatImageDto>?> GetAllForPostAsync(Guid postId, CancellationToken cancellationToken) =>
         GetAllForOwnerAsync(postId, ct => PostExistsAsync(postId, ct), cancellationToken);
 
+    public Task<CatImageDto?> UploadForFrontPageAsync(Stream content, string contentType, long length, CancellationToken cancellationToken) =>
+        UploadForOwnerAsync(FrontPageImages.OwnerId, _ => Task.FromResult(true), content, contentType, length, cancellationToken);
+
+    public async Task<IReadOnlyList<CatImageDto>> GetAllForFrontPageAsync(CancellationToken cancellationToken) =>
+        await GetAllForOwnerAsync(FrontPageImages.OwnerId, _ => Task.FromResult(true), cancellationToken) ?? Array.Empty<CatImageDto>();
+
     // Et utkast regnes som funnet: mamma laster opp bilder før hun publiserer, og adminsiden henter dem herfra.
     private async Task<bool> PostExistsAsync(Guid postId, CancellationToken cancellationToken) =>
         await postHandler.GetAsync(postId, includeDrafts: true, cancellationToken) != null;

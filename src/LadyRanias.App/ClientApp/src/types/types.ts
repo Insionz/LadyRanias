@@ -33,6 +33,17 @@ export type Cat = {
   saleStatus?: KittenStatus | null // bare for kattunger
 }
 
+/** Hvilket bilde forsiden viser. Newest = det nyeste bildet av den nyeste katten (som før). */
+export type HeroMode = 'Newest' | 'Fixed' | 'Random' | 'Slideshow'
+
+/** Det mamma styrer selv: velkomstteksten, «Om oss» og forsidebildet. */
+export type SiteSettings = {
+  welcomeText: string
+  aboutText: string
+  heroMode: HeroMode
+  heroImageId?: string | null
+}
+
 /** Hva et innlegg i nyhetene handler om. */
 export type PostKind = 'Other' | 'Show' | 'NewCat' | 'Title' | 'Litter'
 
