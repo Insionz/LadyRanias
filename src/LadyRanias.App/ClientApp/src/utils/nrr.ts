@@ -1,6 +1,6 @@
 ﻿/** Siden til en katt hos NRR (MyCats). */
-export function nrrCatUrl(nrrId: number, tab?: 'pedigree' | 'health') {
-  const anchor = tab === 'pedigree' ? '#tabSukupuu' : tab === 'health' ? '#tabTerveystulokset' : ''
+export function nrrCatUrl(nrrId: number, tab?: 'pedigree') {
+  const anchor = tab === 'pedigree' ? '#tabSukupuu' : ''
   return `https://katt.nrr.no/Katter/perusnaytto_kissa.aspx?id=${nrrId}${anchor}`
 }
 

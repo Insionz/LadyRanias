@@ -24,7 +24,7 @@ export type Cat = {
   titles?: string | null
   deceased: boolean // død, med eller uten dato
   deathDate?: string | null // ofte ukjent for de gamle kattene
-  nrrId?: number | null // id-en hos NRR (katt.nrr.no), for lenke til stamtavle og helseresultater
+  nrrId?: number | null // id-en hos NRR (katt.nrr.no), for lenke til stamtavlen
   // Mor og far for en kjøpt katt: en katt i systemet, eller bare et navn. Født her: se kullet.
   motherId?: string | null
   motherName?: string | null

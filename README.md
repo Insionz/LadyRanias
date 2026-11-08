@@ -46,7 +46,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 18 | Mor og far for kjøpte katter, og titlene som rosetter på riktig side av navnet (FIFe) | ✅ |
 | 19 | Nyheter: innlegg mamma skriver selv, med bilder, type og katter | ✅ |
 | 20 | Forsiden: egne forsidebilder (fast, tilfeldig eller lysbilder), velkomsttekst og «Om oss» som mamma skriver selv | ✅ |
-| 21 | Lenke til stamtavle og helseresultater hos NRR (katt.nrr.no) | ✅ |
+| 21 | Lenke til stamtavle hos NRR (katt.nrr.no) | ✅ |
 
 ## Utsatt til senere
 
@@ -1189,12 +1189,12 @@ Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2
 ## Steg 21: Lenke til NRR
 
 **Mål:** Hver katt lenker til sin side i NRR sitt kattregister (MyCats, katt.nrr.no). Der står den offisielle
-stamtavlen over flere generasjoner og helseresultatene, og NRR holder dem oppdatert.
+stamtavlen over flere generasjoner, og NRR holder den oppdatert.
 
 - [x] `NrrId` på katten: id-en i adressen hos NRR, `perusnaytto_kissa.aspx?id=…`
 - [x] Skjemaet: mamma limer inn adressen fra MyCats (eller bare tallet). Siden plukker ut id-en og sier fra hvis den mangler.
-- [x] Kattesiden lenker til **stamtavlen** (`#tabSukupuu`) og **helseresultatene** (`#tabTerveystulokset`) hos NRR.
-      Vi kopierer dem ikke: NRR har de offisielle opplysningene, og bestemmer selv hva som vises.
+- [x] Kattesiden lenker til **stamtavlen** (`#tabSukupuu`) hos NRR. Vi kopierer den ikke: NRR har de offisielle
+      opplysningene. Lenken til helseresultatene er fjernet.
 
 **Vurdert, men ikke gjort:** å hente kullene automatisk fra NRR. NRR har ikke et API, men sidene er åpne, og søket kan
 gjøres som et ASP.NET WebForms-skjema (GET for `__VIEWSTATE`, så POST). Det ble ikke nødvendig, fordi alle kull og katter

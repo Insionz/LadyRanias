@@ -196,7 +196,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
           <TextInput
             label="Lenke hos NRR"
             placeholder="https://katt.nrr.no/Katter/perusnaytto_kissa.aspx?id=…"
-            description="Lim inn adressen til katten i MyCats. Gir lenke til stamtavle og helseresultater."
+            description="Lim inn adressen til katten i MyCats. Gir lenke til stamtavlen."
             value={nrrLink}
             error={nrrLink.trim() !== '' && nrrId === null ? 'Fant ingen id i lenken' : undefined}
             onChange={e => setNrrLink(e.currentTarget.value)}
