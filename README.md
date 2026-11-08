@@ -1134,6 +1134,10 @@ En katt født her har mor og far fra kullet. En kjøpt katt har også foreldre, 
 Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2010) for de gamle titlene EC/EP.
 - [x] Stigen: KCH → JCH → CH/PR → IC/IP → GIC/GIP → SC/SP. EC/EP (det gamle navnet på toppnivået) regnes som SC/SP.
       KC og JC (slik NRR-siden skriver dem) vises som KCH og JCH.
+- [x] **Fire stiger** (NRR/FIFe Utstillingsreglement 2026, § 4.1–4.5): kattunge (KCH), junior (JCH), hel voksen
+      (CH → IC → GIC → SC) og kastrert voksen (PR → IP → GIP → SP). Titlene beholdes, men i hver stige vises bare den
+      høyeste. Står det «CH IC GIC JCH KCH», vises «GIC JCH KCH». Rekkefølgen foran navnet er voksen, junior, kattunge.
+- [x] Alle vinnertitlene fra reglementet: NW, IW, AW, BW, BSW, CEW, EAW, MW, NSW, SW, WW (med år)
 - [x] Andre: JW, DSW, DSM, DVM, DM, og vinnertitlene NW, SW, NSW, MW, WW med år («WW'24», «WW 2024»).
 - [x] **Plassering etter FIFe:** vinnertitler med år først, så champion-titler, så navnet, så JW, DSW og merittene:
       «WW'24 SC NO*LadyRania's Kiara JW DSM». Mamma skriver titlene i ett felt, i hvilken som helst rekkefølge (`titles.ts`).
@@ -1199,3 +1203,15 @@ allerede var lagt inn for hånd.
 ---
 
 Neste steg beskrives her når vi kommer dit.
+
+## Steg 22: Søk og filter på kull
+
+**Mål:** Nå som alle kullene fra starten ligger inne, skal mamma finne det hun skal endre uten å rulle, og besøkende
+skal kunne se bare den rasen de er interessert i.
+
+- [x] **Admin, «Kull»:** søk på kullnavn, mor, far og kattungenavn. Søket gjelder alle kull, også de tidligere.
+- [x] Filter på **rase** (morens rase) og **status**: Aktive (standard), Planlagte, Tidligere, Alle. Planlagte øverst,
+      så nyeste først.
+- [x] «Aktiv» betyr det samme som på den offentlige kullsiden: planlagt, under et halvt år, eller med kattunger som ikke
+      har fått et hjem. Regelen ligger i `utils/litters.ts`, så de to sidene ikke kan bli uenige.
+- [x] **Kullsiden:** valg mellom «Alle raser», Maine Coon og Hellig Birma. Vises bare når det finnes kull av begge.

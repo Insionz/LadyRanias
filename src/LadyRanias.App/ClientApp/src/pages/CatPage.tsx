@@ -132,7 +132,7 @@ export default function CatPage() {
               Navnet står i skriveskriften, men titlene gjør ikke det: forkortelser som «GIC JC KC» er nesten
               umulige å lese i en løkkeskrift. De står i vanlig skrift, mindre, på samme plass som i det fulle navnet.
             */}
-            <Title order={2} fz={64} lh={1.1}>
+            <Title order={2} fz={{ base: 40, sm: 52 }} lh={1.1}>
               {titles.before.length > 0 && <span style={titleStyle}>{titles.before.map(t => t.text).join(' ')} </span>}
               {c.name}
               {titles.after.length > 0 && <span style={titleStyle}> {titles.after.map(t => t.text).join(' ')}</span>}
