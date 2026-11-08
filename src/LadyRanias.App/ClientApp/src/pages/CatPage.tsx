@@ -187,16 +187,11 @@ export default function CatPage() {
               </Table>
             )}
 
-            {/* Den offisielle stamtavlen og helseresultatene ligger hos NRR. Vi lenker dit i stedet for å kopiere dem. */}
+            {/* Den offisielle stamtavlen ligger hos NRR. Vi lenker dit i stedet for å kopiere den. */}
             {c.nrrId && (
-              <Group gap="md">
-                <Anchor href={nrrCatUrl(c.nrrId, 'pedigree')} target="_blank" rel="noopener noreferrer" size="sm">
-                  Stamtavle hos NRR ↗
-                </Anchor>
-                <Anchor href={nrrCatUrl(c.nrrId, 'health')} target="_blank" rel="noopener noreferrer" size="sm">
-                  Helseresultater hos NRR ↗
-                </Anchor>
-              </Group>
+              <Anchor href={nrrCatUrl(c.nrrId, 'pedigree')} target="_blank" rel="noopener noreferrer" size="sm">
+                Stamtavle hos NRR ↗
+              </Anchor>
             )}
 
             {c.saleStatus === 'Available' && isKitten && !deceased && (
