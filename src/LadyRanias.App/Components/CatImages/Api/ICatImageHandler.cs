@@ -21,6 +21,10 @@ public interface ICatImageHandler
     /// <returns>Bildene, sist tatt først, eller <c>null</c> hvis kullet ikke finnes.</returns>
     Task<IReadOnlyList<CatImageDto>?> GetAllForLitterAsync(Guid litterId, CancellationToken cancellationToken);
 
+    /// <summary>Bildene til forsiden (FrontPageImages.OwnerId). «Eieren» finnes alltid.</summary>
+    Task<CatImageDto?> UploadForFrontPageAsync(Stream content, string contentType, long length, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CatImageDto>> GetAllForFrontPageAsync(CancellationToken cancellationToken);
+
     /// <returns>Bildene til et innlegg, eller <c>null</c> hvis innlegget ikke finnes.</returns>
     Task<IReadOnlyList<CatImageDto>?> GetAllForPostAsync(Guid postId, CancellationToken cancellationToken);
 

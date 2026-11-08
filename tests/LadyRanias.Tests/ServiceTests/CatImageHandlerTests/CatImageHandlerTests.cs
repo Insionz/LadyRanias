@@ -330,6 +330,19 @@ public sealed class CatImageHandlerTests
     }
 
     [TestMethod]
+    public async Task Front_page_images_are_kept_apart_under_a_fixed_id()
+    {
+        using var content = new MemoryStream(UploadBytes);
+
+        var uploaded = await _handler.UploadForFrontPageAsync(content, "image/png", UploadBytes.Length, CancellationToken.None);
+
+        Assert.IsNotNull(uploaded);
+        Assert.HasCount(1, await _handler.GetAllForFrontPageAsync(CancellationToken.None));
+        Assert.IsNotNull(await _handler.OpenAsync(FrontPageImages.OwnerId, uploaded.ImageId, CatImageSize.Large, CancellationToken.None));
+        Assert.HasCount(0, (await _handler.GetAllAsync(_kiara.Id, CancellationToken.None))!);
+    }
+
+    [TestMethod]
     public async Task Deleting_litter_removes_its_images()
     {
         var litter = await CreateLitterAsync();

@@ -7,6 +7,21 @@
   background-color: var(--mantine-color-grape-9);
 }
 
+/* Ett bilde i forsidebildet. Flere ligger oppå hverandre i en lysbildevisning, og toner over i hverandre. */
+.slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 1.5s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    transition: none;
+  }
+}
+
 /* Mørk toning nederst, så teksten alltid er lesbar uansett bilde. */
 .shade {
   position: absolute;

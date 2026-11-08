@@ -43,8 +43,9 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 15 | Minneside: døde katter får dødsdato og egen side, i stedet for å bli slettet | ✅ |
 | 16 | Bilder per uke: datoen bildet ble tatt (fra kameraet), «Uke 5» på kattungebilder, og bilder av hele kullet | ✅ |
 | 17 | Gamle kull: koble katter vi har til kullet de er født i, status ved innlegging, «Tidligere kull», «Under evaluering» | ✅ |
-| 19 | Nyheter: innlegg mamma skriver selv, med bilder, type og katter | ✅ |
 | 18 | Mor og far for kjøpte katter, og titlene som rosetter på riktig side av navnet (FIFe) | ✅ |
+| 19 | Nyheter: innlegg mamma skriver selv, med bilder, type og katter | ✅ |
+| 20 | Forsiden: egne forsidebilder (fast, tilfeldig eller lysbilder), velkomsttekst og «Om oss» som mamma skriver selv | ✅ |
 
 ## Utsatt til senere
 
@@ -1158,6 +1159,22 @@ Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2
 - [x] Admin: fanen «Nyheter» med nytt innlegg, rediger, bilder og slett. Etter et nytt innlegg åpnes bildene med en gang.
 
 **Utsatt:** rik tekst (fet skrift, overskrifter), forslag til innlegg når en katt får en tittel.
+
+---
+
+## Steg 20: Forsiden og «Om oss»
+
+**Mål:** Mamma bestemmer selv hvilket bilde som møter besøkende, og skriver tekstene om oppdrettet.
+
+- [x] Komponenten **Site**: én rad i tabellen `site` med velkomsttekst, «Om oss»-tekst, `HeroMode` og valgt bilde.
+      Er ingenting lagret, kommer standardteksten, så forsiden ser ut som før.
+- [x] **Forsidebilder** lagres i CatImages under en fast id (`FrontPageImages.OwnerId`, `SITE_IMAGES_ID` i frontend),
+      fordi de ikke hører til en katt, et kull eller et innlegg. Adressene har id-en med, så bildeeditoren virker som den er.
+- [x] `HeroMode`: Automatisk (nyeste bilde av nyeste katt), ett bestemt bilde, tilfeldig ved hvert besøk, eller lysbilder
+      som toner over i hverandre hvert 7. sekund. Lysbildene står stille for den som har slått av animasjoner.
+      Uten forsidebilder brukes alltid Automatisk. Er det valgte bildet slettet, brukes det første.
+- [x] Siden **«Om oss»** (`/om-oss`) i menyen. Forsiden lenker dit når teksten finnes.
+- [x] Admin: fanen **«Forside»** med valg av bilde (trykk på det), opplasting, og de to tekstene
 
 ---
 
