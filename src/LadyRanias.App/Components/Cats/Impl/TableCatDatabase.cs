@@ -74,6 +74,7 @@ internal sealed class TableCatDatabase : ICatDatabase
             Color = entity.Color,
             Neutered = entity.Neutered,
             RegistrationNumber = entity.RegistrationNumber,
+            NrrId = entity.NrrId,
             Titles = entity.Titles,
             Deceased = entity.Deceased,
             MotherId = entity.MotherId,
@@ -105,6 +106,7 @@ internal sealed class TableCatDatabase : ICatDatabase
             Color = cat.Color,
             Neutered = cat.Neutered ?? false,
             RegistrationNumber = cat.RegistrationNumber,
+            NrrId = cat.NrrId,
             Titles = cat.Titles,
             DeathDate = cat.DeathDate == null ? null : DateOnly.FromDateTime(cat.DeathDate.Value),
             // Før «død uten dato» fantes, betydde en dødsdato at katten var død.

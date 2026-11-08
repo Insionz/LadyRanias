@@ -11,6 +11,7 @@ import { contactLink } from '../utils/contactLink'
 import { groupByWeek } from '../utils/imageWeeks'
 import { parentFromCat, type ParentInfo } from '../utils/parents'
 import { parseTitles } from '../utils/titles'
+import { nrrCatUrl } from '../utils/nrr'
 import { ageLabel, breedLabel, formatDate, kittenStatusBadge, lifeYears, outOfBreedingLabel, sexLabel } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 
@@ -184,6 +185,18 @@ export default function CatPage() {
                   ))}
                 </Table.Tbody>
               </Table>
+            )}
+
+            {/* Den offisielle stamtavlen og helseresultatene ligger hos NRR. Vi lenker dit i stedet for å kopiere dem. */}
+            {c.nrrId && (
+              <Group gap="md">
+                <Anchor href={nrrCatUrl(c.nrrId, 'pedigree')} target="_blank" rel="noopener noreferrer" size="sm">
+                  Stamtavle hos NRR ↗
+                </Anchor>
+                <Anchor href={nrrCatUrl(c.nrrId, 'health')} target="_blank" rel="noopener noreferrer" size="sm">
+                  Helseresultater hos NRR ↗
+                </Anchor>
+              </Group>
             )}
 
             {c.saleStatus === 'Available' && isKitten && !deceased && (

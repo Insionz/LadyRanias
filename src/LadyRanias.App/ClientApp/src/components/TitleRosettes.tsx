@@ -10,7 +10,7 @@ function colors(title: Title): { ring: string; center: string } {
     switch (title.level) {
       case 1:
       case 2:
-        return { ring: '#7cc3d8', center: '#2f8aa6' } // KC, JC
+        return { ring: '#7cc3d8', center: '#2f8aa6' } // KCH, JCH
       case 3:
         return { ring: '#6f9be8', center: '#2d5fbf' } // CH, PR
       case 4:

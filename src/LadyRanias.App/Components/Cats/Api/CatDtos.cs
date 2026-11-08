@@ -19,6 +19,9 @@ public sealed record CatDto
     public string? Color { get; set; }
     public bool Neutered { get; set; }
     public string? RegistrationNumber { get; set; }
+
+    /// <summary>Id-en hos NRR (katt.nrr.no/Katter/perusnaytto_kissa.aspx?id=…). Gir lenke til stamtavle og helseresultater.</summary>
+    public int? NrrId { get; set; }
     public string? Titles { get; set; }
 
     /// <summary>
@@ -61,6 +64,7 @@ public sealed record CreateCatDto
     [StringLength(60)] public string? Color { get; set; }
     public bool Neutered { get; set; }
     [StringLength(60)] public string? RegistrationNumber { get; set; }
+    public int? NrrId { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
 
     /// <summary>Død, med eller uten dato. En dødsdato betyr at katten er død, også om Deceased ikke er satt.</summary>
@@ -94,6 +98,7 @@ public sealed record UpdateCatDto
     [StringLength(60)] public string? Color { get; set; }
     public bool Neutered { get; set; }
     [StringLength(60)] public string? RegistrationNumber { get; set; }
+    public int? NrrId { get; set; }
     [StringLength(60)] public string? Titles { get; set; }
 
     /// <summary>Død, med eller uten dato. En dødsdato betyr at katten er død, også om Deceased ikke er satt.</summary>

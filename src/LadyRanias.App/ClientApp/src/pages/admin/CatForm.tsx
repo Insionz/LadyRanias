@@ -4,6 +4,7 @@ import { send, useApi } from '../../api/api'
 import type { Breed, Cat, CatRole, Sex } from '../../types/types'
 import { breedLabel, emsBreedCode, roleLabel } from '../../utils/format'
 import { knownTitleCodes, parseTitle } from '../../utils/titles'
+import { nrrCatUrl, parseNrrId } from '../../utils/nrr'
 
 type Props = {
   cat?: Cat // mangler den, lager vi en ny katt
@@ -38,6 +39,8 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
   const [color, setColor] = useState(cat?.color ?? '')
   const [neutered, setNeutered] = useState(cat?.neutered ?? false)
   const [registrationNumber, setRegistrationNumber] = useState(cat?.registrationNumber ?? '')
+  const [nrrLink, setNrrLink] = useState(cat?.nrrId ? nrrCatUrl(cat.nrrId) : '')
+  const nrrId = parseNrrId(nrrLink)
   // Titlene som en liste, én per merkelapp. Lagres som tekst med mellomrom: «GIC JW WW'24».
   const [titles, setTitles] = useState<string[]>((cat?.titles ?? '').split(/\s+/).filter(Boolean))
   const [motherId, setMotherId] = useState<string | null>(cat?.motherId ?? null)
@@ -101,6 +104,7 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
       color,
       neutered,
       registrationNumber,
+      nrrId,
       titles: titles.join(' '),
       // Født her: mor og far kommer fra kullet. Ellers en katt fra lista, eller bare et navn.
       motherId: bornHere ? null : motherId,
@@ -188,6 +192,14 @@ export default function CatForm({ cat, onSaved, onCancel }: Props) {
             label="Registreringsnummer"
             value={registrationNumber}
             onChange={e => setRegistrationNumber(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Lenke hos NRR"
+            placeholder="https://katt.nrr.no/Katter/perusnaytto_kissa.aspx?id=…"
+            description="Lim inn adressen til katten i MyCats. Gir lenke til stamtavle og helseresultater."
+            value={nrrLink}
+            error={nrrLink.trim() !== '' && nrrId === null ? 'Fant ingen id i lenken' : undefined}
+            onChange={e => setNrrLink(e.currentTarget.value)}
           />
           <TagsInput
             label="Titler"

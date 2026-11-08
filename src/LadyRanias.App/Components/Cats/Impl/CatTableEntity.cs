@@ -23,6 +23,7 @@ public record CatTableEntity : ITableEntity
     public string? Color { get; set; }
     public bool? Neutered { get; set; }
     public string? RegistrationNumber { get; set; }
+    public int? NrrId { get; set; }
     public string? Titles { get; set; }
     public bool? Deceased { get; set; }
     public Guid? MotherId { get; set; }

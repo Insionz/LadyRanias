@@ -46,6 +46,7 @@ Domenet blir liggende hos one.com. Der kan det ikke kjøre .NET, så vi peker ba
 | 18 | Mor og far for kjøpte katter, og titlene som rosetter på riktig side av navnet (FIFe) | ✅ |
 | 19 | Nyheter: innlegg mamma skriver selv, med bilder, type og katter | ✅ |
 | 20 | Forsiden: egne forsidebilder (fast, tilfeldig eller lysbilder), velkomsttekst og «Om oss» som mamma skriver selv | ✅ |
+| 21 | Lenke til stamtavle og helseresultater hos NRR (katt.nrr.no) | ✅ |
 
 ## Utsatt til senere
 
@@ -844,6 +845,8 @@ Kopier `name` og `certificateId` inn i `customDomains`, og kjør `what-if` for p
 
 - [ ] **Entra:** legg til `https://www.ladyranias.no/api/auth/signin-oidc` og `https://www.ladyranias.no/api/auth/signout-callback-oidc`
       som redirect-URI-er. Domenet uten www trenger ikke, fordi det alltid sendes til www først.
+      **Legg dem til ved siden av localhost-adressene, ikke i stedet for.** Forsvinner
+      `http://localhost:5173/api/auth/signin-oidc`, slutter innloggingen lokalt å virke med AADSTS50011.
 
 ### Del 4: Mamma får tilgang
 - [ ] Hun går til `https://www.ladyranias.no/admin`, logger inn med e-posten sin og engangskoden, og ser «Ingen tilgang»
@@ -1129,7 +1132,8 @@ En katt født her har mor og far fra kullet. En kjøpt katt har også foreldre, 
 
 ### Titler
 Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2010) for de gamle titlene EC/EP.
-- [x] Stigen: KC → JC → CH/PR → IC/IP → GIC/GIP → SC/SP. EC/EP (det gamle navnet på toppnivået) regnes som SC/SP.
+- [x] Stigen: KCH → JCH → CH/PR → IC/IP → GIC/GIP → SC/SP. EC/EP (det gamle navnet på toppnivået) regnes som SC/SP.
+      KC og JC (slik NRR-siden skriver dem) vises som KCH og JCH.
 - [x] Andre: JW, DSW, DSM, DVM, DM, og vinnertitlene NW, SW, NSW, MW, WW med år («WW'24», «WW 2024»).
 - [x] **Plassering etter FIFe:** vinnertitler med år først, så champion-titler, så navnet, så JW, DSW og merittene:
       «WW'24 SC NO*LadyRania's Kiara JW DSM». Mamma skriver titlene i ett felt, i hvilken som helst rekkefølge (`titles.ts`).
@@ -1175,6 +1179,22 @@ Kilder: FIFe show titles (2024), NRR «Titler man kan oppnå», rasekatter.no (2
       Uten forsidebilder brukes alltid Automatisk. Er det valgte bildet slettet, brukes det første.
 - [x] Siden **«Om oss»** (`/om-oss`) i menyen. Forsiden lenker dit når teksten finnes.
 - [x] Admin: fanen **«Forside»** med valg av bilde (trykk på det), opplasting, og de to tekstene
+
+---
+
+## Steg 21: Lenke til NRR
+
+**Mål:** Hver katt lenker til sin side i NRR sitt kattregister (MyCats, katt.nrr.no). Der står den offisielle
+stamtavlen over flere generasjoner og helseresultatene, og NRR holder dem oppdatert.
+
+- [x] `NrrId` på katten: id-en i adressen hos NRR, `perusnaytto_kissa.aspx?id=…`
+- [x] Skjemaet: mamma limer inn adressen fra MyCats (eller bare tallet). Siden plukker ut id-en og sier fra hvis den mangler.
+- [x] Kattesiden lenker til **stamtavlen** (`#tabSukupuu`) og **helseresultatene** (`#tabTerveystulokset`) hos NRR.
+      Vi kopierer dem ikke: NRR har de offisielle opplysningene, og bestemmer selv hva som vises.
+
+**Vurdert, men ikke gjort:** å hente kullene automatisk fra NRR. NRR har ikke et API, men sidene er åpne, og søket kan
+gjøres som et ASP.NET WebForms-skjema (GET for `__VIEWSTATE`, så POST). Det ble ikke nødvendig, fordi alle kull og katter
+allerede var lagt inn for hånd.
 
 ---
 
