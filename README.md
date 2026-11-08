@@ -1215,3 +1215,10 @@ skal kunne se bare den rasen de er interessert i.
 - [x] «Aktiv» betyr det samme som på den offentlige kullsiden: planlagt, under et halvt år, eller med kattunger som ikke
       har fått et hjem. Regelen ligger i `utils/litters.ts`, så de to sidene ikke kan bli uenige.
 - [x] **Kullsiden:** valg mellom «Alle raser», Maine Coon og Hellig Birma. Vises bare når det finnes kull av begge.
+
+---
+
+## Lisens
+
+Koden er lisensiert under MIT, se [LICENSE](LICENSE). Bildene og tekstene på ladyranias.no ligger ikke i repoet, og
+lisensen gjelder ikke dem.
