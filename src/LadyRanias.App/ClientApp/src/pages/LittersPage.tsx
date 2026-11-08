@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { Accordion, Anchor, Card, Divider, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Accordion, Anchor, Card, Divider, Group, SegmentedControl, SimpleGrid, Stack, Text, Title } from '@mantine/core'
 import { Link } from 'react-router'
 import { useApi } from '../api/api'
 import KittenCard from '../components/KittenCard'
 import LitterPhotos from '../components/LitterPhotos'
 import Parents from '../components/Parents'
 import { ErrorMessage, Loading } from '../components/Status'
-import type { Litter } from '../types/types'
+import type { Breed, Litter } from '../types/types'
 import { ageLabel, formatDate, formatMonth } from '../utils/format'
 import { contactLink } from '../utils/contactLink'
+import { breedLabel } from '../utils/format'
+import { isCurrent, litterBreed } from '../utils/litters'
 
 function PlannedLitter({ litter }: { litter: Litter }) {
   return (
@@ -73,19 +75,6 @@ function BornLitter({ litter }: { litter: Litter }) {
   )
 }
 
-const halfYearMs = 182 * 24 * 60 * 60 * 1000
-
-/**
- * Et kull er «aktuelt» så lenge det er under et halvt år gammelt, eller har kattunger som ikke har fått et hjem ennå.
- * Resten er tidligere kull: historien, som legges sammen nederst så de nye kullene ikke drukner.
- */
-function isCurrent(litter: Litter, now = Date.now()) {
-  if (litter.status === 'Planned') return true
-  const young = litter.birthDate != null && now - Date.parse(litter.birthDate) < halfYearMs
-  const open = litter.kittens.some(k => !k.deceased && (k.status === 'Available' || k.status === 'Reserved' || k.status === 'UnderEvaluation'))
-  return young || open
-}
-
 /** «A-kullet · 2018 · Kiara × Børre» */
 function previousTitle(litter: Litter) {
   return [litter.name, litter.birthDate?.slice(0, 4), litter.mother && litter.father ? `${litter.mother.name} × ${litter.father.name}` : null]
@@ -98,11 +87,16 @@ export default function LittersPage() {
   const [openPrevious, setOpenPrevious] = useState<string | null>(null)
   // Mor og far følger med i kullet, også en ekstern far som ikke står blant kattene våre.
   const litters = useApi<Litter[]>('/api/public/litters')
+  // De fleste er interessert i én av rasene. 'all' = begge.
+  const [breed, setBreed] = useState<Breed | 'all'>('all')
 
   if (litters.loading) return <Loading />
   if (litters.error) return <ErrorMessage message={litters.error} />
 
-  const all = litters.data ?? []
+  const everything = litters.data ?? []
+  // Filteret vises bare når det finnes kull av mer enn én rase.
+  const breeds = [...new Set(everything.map(litterBreed))].filter(b => b !== 'Unknown')
+  const all = breed === 'all' ? everything : everything.filter(l => litterBreed(l) === breed)
   const planned = all.filter(l => l.status === 'Planned')
   const born = all.filter(l => l.status === 'Born' && isCurrent(l))
   // Eldste først, så historien leses fra begynnelsen.
@@ -114,11 +108,26 @@ export default function LittersPage() {
     <Stack gap={40}>
       <title>Kull – Lady Rania’s</title>
 
-      <Title order={2} fz={52}>
-        Kull og kattunger
-      </Title>
+      <Stack gap="md">
+        <Title order={2} fz={52}>
+          Kull og kattunger
+        </Title>
+        {breeds.length > 1 && (
+          <SegmentedControl
+            value={breed}
+            onChange={value => {
+              setBreed(value as Breed | 'all')
+              setOpenPrevious(null)
+            }}
+            data={[{ value: 'all', label: 'Alle raser' }, ...breeds.map(b => ({ value: b, label: breedLabel(b) }))]}
+            style={{ alignSelf: 'flex-start' }}
+          />
+        )}
+      </Stack>
 
-      {all.length === 0 && <Text c="dimmed">Det er ingen kull akkurat nå. Ta gjerne kontakt hvis du vil stå på venteliste.</Text>}
+      {everything.length > 0 && all.length === 0 && <Text c="dimmed">Ingen kull av denne rasen ennå.</Text>}
+
+      {everything.length === 0 && <Text c="dimmed">Det er ingen kull akkurat nå. Ta gjerne kontakt hvis du vil stå på venteliste.</Text>}
 
       {planned.length > 0 && (
         <Stack gap="md">

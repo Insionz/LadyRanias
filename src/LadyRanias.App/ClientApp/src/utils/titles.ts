@@ -25,28 +25,47 @@ export type Title = {
   name: string
   /** Står tittelen etter navnet? */
   after: boolean
+  /** Hvilken stige champion-tittelen hører til. Bare den høyeste i hver stige vises. */
+  track?: Track
 }
 
-type Known = { kind: TitleKind; level?: number; name: string; after?: boolean }
+/**
+ * Kattunge-, junior- og voksentitlene er hver sin stige (UR § 4.1–4.5). En katt beholder titlene sine, men i hver
+ * stige vises bare den høyeste: en katt som er CH, IC og GIC, er «GIC». Hel og kastrert katt har hver sin voksenstige,
+ * så en katt som ble GIC og så kastrert og IP, har begge.
+ */
+type Track = 'kitten' | 'junior' | 'entire' | 'neutered'
+
+/** Rekkefølgen stigene står i foran navnet: voksentitlene først, så junior, så kattunge («GIC JCH KCH»). */
+const trackOrder: Track[] = ['entire', 'neutered', 'junior', 'kitten']
+
+type Known = { kind: TitleKind; level?: number; name: string; after?: boolean; track?: Track }
 
 const known: Record<string, Known> = {
-  KCH: { kind: 'champion', level: 1, name: 'Kitten Champion' },
-  JCH: { kind: 'champion', level: 2, name: 'Junior Champion' },
-  CH: { kind: 'champion', level: 3, name: 'Champion' },
-  PR: { kind: 'champion', level: 3, name: 'Premior' },
-  IC: { kind: 'champion', level: 4, name: 'International Champion' },
-  IP: { kind: 'champion', level: 4, name: 'International Premior' },
-  GIC: { kind: 'champion', level: 5, name: 'Grand International Champion' },
-  GIP: { kind: 'champion', level: 5, name: 'Grand International Premior' },
-  SC: { kind: 'champion', level: 6, name: 'Supreme Champion' },
-  SP: { kind: 'champion', level: 6, name: 'Supreme Premior' },
-  EC: { kind: 'champion', level: 6, name: 'Europa Champion (tidligere toppnivå, i dag Supreme Champion)' },
-  EP: { kind: 'champion', level: 6, name: 'Europa Premior (tidligere toppnivå, i dag Supreme Premior)' },
+  KCH: { kind: 'champion', level: 1, track: 'kitten', name: 'Kitten Champion' },
+  JCH: { kind: 'champion', level: 2, track: 'junior', name: 'Junior Champion' },
+  CH: { kind: 'champion', level: 3, track: 'entire', name: 'Champion' },
+  PR: { kind: 'champion', level: 3, track: 'neutered', name: 'Premior' },
+  IC: { kind: 'champion', level: 4, track: 'entire', name: 'International Champion' },
+  IP: { kind: 'champion', level: 4, track: 'neutered', name: 'International Premior' },
+  GIC: { kind: 'champion', level: 5, track: 'entire', name: 'Grand International Champion' },
+  GIP: { kind: 'champion', level: 5, track: 'neutered', name: 'Grand International Premior' },
+  SC: { kind: 'champion', level: 6, track: 'entire', name: 'Supreme Champion' },
+  SP: { kind: 'champion', level: 6, track: 'neutered', name: 'Supreme Premior' },
+  EC: { kind: 'champion', level: 6, track: 'entire', name: 'Europa Champion (tidligere toppnivå, i dag Supreme Champion)' },
+  EP: { kind: 'champion', level: 6, track: 'neutered', name: 'Europa Premior (tidligere toppnivå, i dag Supreme Premior)' },
 
+  // Vinnertitler med år, foran navnet (UR § 2.4, 2.6.5, 4.17, 4.19)
   NW: { kind: 'winner', name: 'National Winner' },
-  SW: { kind: 'winner', name: 'Scandinavian Winner' },
+  IW: { kind: 'winner', name: 'International Winner' },
+  AW: { kind: 'winner', name: 'American Winner' },
+  BW: { kind: 'winner', name: 'Baltic Winner' },
+  BSW: { kind: 'winner', name: 'Black Sea Winner' },
+  CEW: { kind: 'winner', name: 'Central European Winner' },
+  EAW: { kind: 'winner', name: 'Eurasian Winner' },
+  MW: { kind: 'winner', name: 'Mediterranean Winner' },
   NSW: { kind: 'winner', name: 'North Sea Winner' },
-  MW: { kind: 'winner', name: 'Winner' },
+  SW: { kind: 'winner', name: 'Scandinavian Winner' },
   WW: { kind: 'winner', name: 'World Winner' },
 
   JW: { kind: 'merit', name: 'Junior Winner', after: true },
@@ -85,7 +104,16 @@ export function parseTitle(raw: string): Title {
 
   const year = yearDigits ? `'${yearDigits.slice(-2)}` : null
   const name = year ? `${info.name} ${yearDigits!.length === 4 ? yearDigits : `20${yearDigits}`}` : info.name
-  return { text: `${code}${year ?? ''}`, code, year, kind: info.kind, level: info.level ?? 0, name, after: info.after ?? false }
+  return {
+    text: `${code}${year ?? ''}`,
+    code,
+    year,
+    kind: info.kind,
+    level: info.level ?? 0,
+    name,
+    after: info.after ?? false,
+    track: info.track,
+  }
 }
 
 /** Alle titlene i feltet, i den rekkefølgen de skal stå. «WW 2024» blir én tittel, ikke to. */
@@ -104,7 +132,10 @@ export function parseTitles(titles?: string | null): { before: Title[]; after: T
 
   const parsed = tokens.map(parseTitle)
   const winners = parsed.filter(t => t.kind === 'winner').sort((a, b) => (b.year ?? '').localeCompare(a.year ?? ''))
-  const champions = parsed.filter(t => t.kind === 'champion').sort((a, b) => b.level - a.level)
+  // Bare den høyeste tittelen i hver stige, i rekkefølgen voksen, junior, kattunge.
+  const champions = trackOrder
+    .map(track => parsed.filter(t => t.track === track).sort((a, b) => b.level - a.level)[0])
+    .filter((t): t is Title => t !== undefined)
   const unknown = parsed.filter(t => t.kind === 'unknown')
   const after = parsed.filter(t => t.after).sort((a, b) => afterOrder.indexOf(a.code) - afterOrder.indexOf(b.code))
 
@@ -117,7 +148,7 @@ export function fullName(name: string, titles?: string | null) {
   return [...before.map(t => t.text), name, ...after.map(t => t.text)].join(' ')
 }
 
-/** Den høyeste champion-tittelen, til kattekortet. Ingen champion-tittel: den første andre kjente tittelen. */
+/** Den høyeste champion-tittelen (voksen før junior før kattunge), til kattekortet. Ellers den første andre kjente. */
 export function highestTitle(titles?: string | null): Title | null {
   const { before, after } = parseTitles(titles)
   const champion = before.filter(t => t.kind === 'champion').sort((a, b) => b.level - a.level)[0]
