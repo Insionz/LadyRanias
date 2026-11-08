@@ -19,7 +19,7 @@ export type Title = {
   /** «'24», hvis tittelen har et år */
   year: string | null
   kind: TitleKind
-  /** Champion-stigen: 1 = KC … 6 = SC/SP/EC/EP. 0 for de andre. */
+  /** Champion-stigen: 1 = KCH … 6 = SC/SP/EC/EP. 0 for de andre. */
   level: number
   /** Fullt navn, til musepekeren og skjermlesere */
   name: string
@@ -30,8 +30,8 @@ export type Title = {
 type Known = { kind: TitleKind; level?: number; name: string; after?: boolean }
 
 const known: Record<string, Known> = {
-  KC: { kind: 'champion', level: 1, name: 'Kitten Champion' },
-  JC: { kind: 'champion', level: 2, name: 'Junior Champion' },
+  KCH: { kind: 'champion', level: 1, name: 'Kitten Champion' },
+  JCH: { kind: 'champion', level: 2, name: 'Junior Champion' },
   CH: { kind: 'champion', level: 3, name: 'Champion' },
   PR: { kind: 'champion', level: 3, name: 'Premior' },
   IC: { kind: 'champion', level: 4, name: 'International Champion' },
@@ -59,6 +59,12 @@ const known: Record<string, Known> = {
 /** Alle kjente titler, i stigen først og så de andre. Til nedtrekkslista i admin. */
 export const knownTitleCodes = Object.keys(known)
 
+/**
+ * Andre skrivemåter som betyr det samme. NRR-siden skriver KC og JC, men titlene forkortes KCH og JCH.
+ * Står det KC i en katt, vises det som KCH.
+ */
+const aliases: Record<string, string> = { KC: 'KCH', JC: 'JCH' }
+
 /** Rekkefølgen etter navnet: JW og DSW først, så meritter. */
 const afterOrder = ['JW', 'DSW', 'DSM', 'DVM', 'DM']
 
@@ -68,7 +74,7 @@ const withYear = /^([A-Z]+)(?:['’]?(\d{2}|\d{4}))?$/
 export function parseTitle(raw: string): Title {
   const upper = raw.toUpperCase()
   const match = withYear.exec(upper)
-  const code = match?.[1] ?? upper
+  const code = aliases[match?.[1] ?? upper] ?? match?.[1] ?? upper
   const yearDigits = match?.[2]
   const info = known[code]
 
