@@ -395,6 +395,21 @@ public sealed class LitterHandlerTests
     }
 
     [TestMethod]
+    public async Task Sold_kitten_can_be_kept_after_all_and_then_counts_as_our_cat()
+    {
+        var litter = await CreateBornLitterAsync();
+        var kitten = await _handler.AddKittenAsync(litter.Id, NewKitten(), CancellationToken.None);
+        Assert.IsNotNull(kitten);
+        await _handler.ChangeKittenStatusAsync(litter.Id, kitten.Id, new() { Status = KittenStatus.Sold }, CancellationToken.None);
+
+        var kept = await _handler.ChangeKittenStatusAsync(litter.Id, kitten.Id, new() { Status = KittenStatus.Kept }, CancellationToken.None);
+
+        Assert.IsNotNull(kept);
+        Assert.AreEqual(KittenStatus.Kept, kept.Status);
+        Assert.IsTrue((await _cats.GetOwnAsync(CancellationToken.None)).Any(c => c.Id == kept.Id));
+    }
+
+    [TestMethod]
     public async Task Change_status_of_unknown_kitten_returns_null()
     {
         var litter = await CreateBornLitterAsync();
