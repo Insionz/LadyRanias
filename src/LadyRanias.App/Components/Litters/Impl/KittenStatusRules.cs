@@ -9,12 +9,14 @@ namespace LadyRanias.App.Components.Litters.Impl;
 ///   Fra \ Til         Available  Reserved  Sold  Kept  UnderEvaluation
 ///   Available             –          ✅       ✅     ✅        ✅
 ///   Reserved              ✅         –        ✅     ❌        ❌
-///   Sold                  ❌         ❌       –      ❌        ❌
+///   Sold                  ✅         ❌       –      ✅        ❌
 ///   Kept                  ✅         ❌       ❌     –         ✅
 ///   UnderEvaluation       ✅         ❌       ❌     ✅        –
 ///
 /// «Under evaluering»: oppdretteren vurderer om hun skal beholde kattungen. Derfra blir den enten ledig eller beholdt.
 /// Den kan ikke reserveres eller selges direkte, for da er den ikke ferdig vurdert.
+///
+/// «Solgt» kan angres: salget gikk tilbake (ledig igjen), eller vi beholder den likevel. Også når den ble satt til solgt ved en feil.
 /// </summary>
 internal static class KittenStatusRules
 {
@@ -28,13 +30,16 @@ internal static class KittenStatusRules
         (KittenStatus.Reserved, KittenStatus.Available) => true, // reservasjonen falt bort
         (KittenStatus.Reserved, KittenStatus.Sold) => true,
 
+        (KittenStatus.Sold, KittenStatus.Available) => true,     // salget gikk tilbake
+        (KittenStatus.Sold, KittenStatus.Kept) => true,          // vi beholder den likevel
+
         (KittenStatus.Kept, KittenStatus.Available) => true,     // oppdretter har ombestemt seg
         (KittenStatus.Kept, KittenStatus.UnderEvaluation) => true,
 
         (KittenStatus.UnderEvaluation, KittenStatus.Available) => true, // skal selges
         (KittenStatus.UnderEvaluation, KittenStatus.Kept) => true,      // blir hos oss
 
-        // Alt annet, også «samme status» og alt fra Sold.
+        // Alt annet, også «samme status».
         _ => false,
     };
 }

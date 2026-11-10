@@ -7,7 +7,7 @@ import type { KittenStatus } from '../types/types'
 const allowed: Record<KittenStatus, KittenStatus[]> = {
   Available: ['Reserved', 'Sold', 'Kept', 'UnderEvaluation'],
   Reserved: ['Available', 'Sold'],
-  Sold: [],
+  Sold: ['Available', 'Kept'], // salget gikk tilbake, eller vi beholder den likevel
   Kept: ['Available', 'UnderEvaluation'],
   UnderEvaluation: ['Available', 'Kept'],
 }

@@ -155,7 +155,7 @@ export default function LitterAdminCard({ litter, cats, onChanged }: Props) {
                           </Table.Td>
                           <Table.Td>{sexLabel(kitten.sex)}</Table.Td>
                           <Table.Td w={180}>
-                            {/* Bare lovlige overganger vises. Er den solgt, er det ingenting å velge. */}
+                            {/* Bare lovlige overganger vises. */}
                             <Select
                               size="xs"
                               aria-label={`Status for ${kitten.name}`}

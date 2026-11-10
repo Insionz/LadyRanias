@@ -20,10 +20,10 @@ public sealed class KittenStatusRulesTests
     [DataRow(KittenStatus.Reserved, KittenStatus.Kept, false)]
     [DataRow(KittenStatus.Reserved, KittenStatus.UnderEvaluation, false)]
 
-    [DataRow(KittenStatus.Sold, KittenStatus.Available, false)]
+    [DataRow(KittenStatus.Sold, KittenStatus.Available, true)]
     [DataRow(KittenStatus.Sold, KittenStatus.Reserved, false)]
     [DataRow(KittenStatus.Sold, KittenStatus.Sold, false)]
-    [DataRow(KittenStatus.Sold, KittenStatus.Kept, false)]
+    [DataRow(KittenStatus.Sold, KittenStatus.Kept, true)]
     [DataRow(KittenStatus.Sold, KittenStatus.UnderEvaluation, false)]
 
     [DataRow(KittenStatus.Kept, KittenStatus.Available, true)]
