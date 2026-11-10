@@ -5,7 +5,7 @@ import { nameWithTitles } from '../utils/format'
 import type { ParentInfo } from '../utils/parents'
 
 /** Én forelder. Våre egne katter lenkes til. En ekstern katt, eller bare et navn, står som tekst. */
-function ParentName({ parent }: { parent?: ParentInfo | null }) {
+export function ParentName({ parent }: { parent?: ParentInfo | null }) {
   if (!parent) {
     return (
       <Text span c="dimmed">

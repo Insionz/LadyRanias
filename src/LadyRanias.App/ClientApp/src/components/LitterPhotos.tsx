@@ -1,17 +1,22 @@
-﻿import { useState } from 'react'
-import { Box, Image, Modal, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
+import { useState } from 'react'
+import { Box, Image, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
 import { imageUrl, useApi } from '../api/api'
 import type { CatImage, Litter } from '../types/types'
 import { groupByWeek } from '../utils/imageWeeks'
+import Lightbox from './Lightbox'
 
 /** Fellesbilder av hele kullet, gruppert per uke («Uke 3», «Uke 5»). Vises ikke hvis kullet ikke har noen. */
 export default function LitterPhotos({ litter }: { litter: Litter }) {
   const { data: images } = useApi<CatImage[]>(`/api/public/litters/${litter.id}/images`)
-  const [open, setOpen] = useState<CatImage | null>(null)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   if (!images || images.length === 0) return null
 
   const groups = litter.birthDate ? groupByWeek(images, litter.birthDate) : [{ weeks: 0, label: '', images }]
+  // Alle bildene på rad, med uka som bildetekst, så man kan bla gjennom hele kullet i fullskjerm.
+  const flat = groups.flatMap(group =>
+    group.images.map(image => ({ image, src: imageUrl('litters', litter.id, image.imageId, 'large'), caption: group.label || undefined })),
+  )
 
   return (
     <Stack gap="xs">
@@ -27,7 +32,11 @@ export default function LitterPhotos({ litter }: { litter: Litter }) {
           )}
           <SimpleGrid cols={{ base: 3, sm: 6 }} spacing="xs">
             {group.images.map(image => (
-              <UnstyledButton key={image.imageId} onClick={() => setOpen(image)} aria-label={`Vis bildet fra ${group.label || 'kullet'}`}>
+              <UnstyledButton
+                key={image.imageId}
+                onClick={() => setOpenIndex(flat.findIndex(f => f.image.imageId === image.imageId))}
+                aria-label={`Vis bildet fra ${group.label || 'kullet'}`}
+              >
                 <Image src={imageUrl('litters', litter.id, image.imageId, 'thumb')} radius="sm" h={90} alt="" loading="lazy" />
               </UnstyledButton>
             ))}
@@ -35,9 +44,7 @@ export default function LitterPhotos({ litter }: { litter: Litter }) {
         </Box>
       ))}
 
-      <Modal opened={open !== null} onClose={() => setOpen(null)} size="xl" title={litter.name} centered>
-        {open && <Image src={imageUrl('litters', litter.id, open.imageId, 'large')} radius="sm" alt={litter.name} fit="contain" mah="80vh" />}
-      </Modal>
+      <Lightbox images={flat} index={openIndex} onChange={setOpenIndex} onClose={() => setOpenIndex(null)} alt={litter.name} />
     </Stack>
   )
 }
