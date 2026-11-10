@@ -1,4 +1,4 @@
-﻿import { Group, Tooltip } from '@mantine/core'
+﻿import { Group, Stack, Text, Tooltip } from '@mantine/core'
 import type { Title } from '../utils/titles'
 
 /**
@@ -78,5 +78,22 @@ export default function TitleRosettes({ titles, size = 40 }: { titles: Title[]; 
         <Rosette key={title.text} title={title} size={size} />
       ))}
     </Group>
+  )
+}
+
+/** Titlene som en liste: rosetten og det fulle navnet ved siden av, så de betyr noe også for den som ikke kan forkortelsene. */
+export function TitleList({ titles }: { titles: Title[] }) {
+  const shown = titles.filter(t => t.kind !== 'unknown')
+  if (shown.length === 0) return null
+
+  return (
+    <Stack gap={6}>
+      {shown.map(title => (
+        <Group key={title.text} gap="sm" wrap="nowrap">
+          <Rosette title={title} size={32} />
+          <Text size="sm">{title.name}</Text>
+        </Group>
+      ))}
+    </Stack>
   )
 }

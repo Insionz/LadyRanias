@@ -32,6 +32,7 @@ Steg 1–6 ble gjort før loggen fikk et avsnitt per steg, og står bare i tabel
 | 20 | Forsiden: egne forsidebilder (fast, tilfeldig eller lysbilder), velkomsttekst og «Om oss» som mamma skriver selv | ✅ |
 | 21 | Lenke til stamtavle hos NRR (katt.nrr.no) | ✅ |
 | 22 | Søk og filter på kull i admin, rasefilter på kullsiden | ✅ |
+| 23 | Ny kattside: rosett på bildet, titler med fullt navn, stamkort, og bildene i full skjerm | ✅ |
 
 ## Utsatt til senere
 
@@ -1185,3 +1186,23 @@ skal kunne se bare den rasen de er interessert i.
 - [x] «Aktiv» betyr det samme som på den offentlige kullsiden: planlagt, under et halvt år, eller med kattunger som ikke
       har fått et hjem. Regelen ligger i `utils/litters.ts`, så de to sidene ikke kan bli uenige.
 - [x] **Kullsiden:** valg mellom «Alle raser», Maine Coon og Hellig Birma. Vises bare når det finnes kull av begge.
+
+---
+
+## Steg 23: Ny kattside og bilder i full skjerm
+
+**Mål:** Kattesiden skal være roligere og lettere å lese, og bildene lette å bla i. Før måtte man rulle ned til et
+lite bilde, trykke, og rulle opp igjen for å se det stort, for hvert bilde.
+
+- [x] **Bildene i full skjerm** (`components/Lightbox.tsx`): et trykk på et bilde, stort eller lite, åpner det med en
+      gang. Man blar med pilene, piltastene eller ved å sveipe, og ser «3 / 24 · Uke 5». Esc, krysset eller et trykk
+      utenfor lukker. Naboene hentes på forhånd. Brukes også for bildene av hele kullet.
+- [x] **Rosetten på bildet:** den høyeste tittelen festet skrått i hjørnet, som sløyfen på buret etter en utstilling.
+- [x] **Titler** nederst: hver rosett med det fulle navnet ved siden av («Grand International Champion»).
+- [x] **Roligere topp:** navnet, én linje med rase, kjønn og alder, og bare merkene som betyr noe (Ledig, Reservert,
+      Ute av avl).
+- [x] **Beskrivelsen rett etter navnet,** i større skrift. Ledige kattunger får en knapp: «Spør om …».
+- [x] **Stamkortet:** født, farge og EMS-kode, registreringsnummer, mor, far, kullet og lenken til NRR, samlet i et kort
+      med små etiketter.
+
+**Utsatt:** mor og far med bilde.
